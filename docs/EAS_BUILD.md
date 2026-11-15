@@ -159,7 +159,11 @@ Pour un test immédiat sans déploiement, un tunnel HTTPS temporaire peut expose
 cloudflared tunnel --url http://localhost:4000
 # ou
 ssh -R 80:localhost:4000 nokey@localhost.run
+# ou, tunnel stable pendant 60 minutes
+ssh -p 443 -R0:localhost:4000 a.pinggy.io
 ```
+
+Pinggy affiche une URL `https://….pinggy-free.link` ou `https://….free.pinggy.net`. Vérifier immédiatement `/health` et une mutation `auth.signIn` avant de lancer le build. Cloudflare quick tunnel peut être indisponible selon le réseau ; localhost.run change de domaine périodiquement.
 
 Limites à annoncer clairement :
 
