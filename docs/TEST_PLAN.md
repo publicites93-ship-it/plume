@@ -1,7 +1,7 @@
 # Plan de test — Plume
 
 **Dernière exécution :** 15 novembre 2026
-**Périmètre vérifié :** tests automatisés, typechecks, bundle web, routes HTTP, parcours API.
+**Périmètre vérifié :** tests automatisés, typechecks, bundle web, routes HTTP, parcours API, build EAS preview.
 
 ---
 
@@ -15,10 +15,13 @@
 | Typecheck `@plume/mobile` | **Passe** | `tsc --noEmit` |
 | Bundle web Expo | **Se compile** | Routes principales en HTTP 200 |
 | Parcours API de bout en bout | **Passe** | Connexion, lecture, analyse, coach, CRUD bible, atelier |
-| Build Android natif | **Non testé** | Pas de Java/Android SDK |
+| Build Android EAS preview | **Passe** | APK `app.plume.reader` 0.1.0 (versionCode 1), 102 Mo, bundle avec URL HTTPS |
+| Installation sur appareil physique | **Non testée** | APK produit, mais pas d'appareil connecté pour l'installer |
 | Test sur appareil physique | **Non testé** | Pas d'appareil connecté |
 | Audit visuel | **Non réalisé** | Pas de capture fiable dans cet environnement |
 | PostgreSQL réel | **Non testé** | PGlite uniquement |
+
+Le build EAS `9c096b0f-6b99-4ec6-8ec1-a4175a9fe77d` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
 
 ---
 
