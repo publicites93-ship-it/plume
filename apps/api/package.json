@@ -1,0 +1,43 @@
+{
+  "name": "@plume/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsup src/server.ts --format esm --dts false --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate-cli.ts",
+    "db:seed": "tsx src/db/seed-cli.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@fastify/cors": "^11.4.3",
+    "@fastify/rate-limit": "^11.2.2",
+    "@plume/shared": "*",
+    "@trpc/server": "^11.28.2",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "jose": "^6.2.17",
+    "pg": "^8.18.0",
+    "superjson": "^2.2.6",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "tsup": "^8.5.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "exports": {
+    ".": "./src/trpc/router.ts"
+  }
+}

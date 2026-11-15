@@ -1,0 +1,29 @@
+{
+  "name": "plume",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plume — bibliothèque gothique enchantée, atelier d'écriture et coach littéraire.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "packageManager": "npm@10.9.8",
+  "scripts": {
+    "dev:api": "npm run dev --workspace @plume/api",
+    "dev:mobile": "npm run start --workspace @plume/mobile",
+    "build:android:preview": "npm run build:android:preview --workspace @plume/mobile",
+    "build:android:production": "npm run build:android:production --workspace @plume/mobile",
+    "db:generate": "npm run db:generate --workspace @plume/api",
+    "db:migrate": "npm run db:migrate --workspace @plume/api",
+    "db:seed": "npm run db:seed --workspace @plume/api",
+    "test": "npm run test --workspace @plume/shared && npm run test --workspace @plume/api",
+    "typecheck": "npm run typecheck --workspace @plume/shared && npm run typecheck --workspace @plume/api && npm run typecheck --workspace @plume/mobile",
+    "icons": "node scripts/generate-assets.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
+  }
+}
