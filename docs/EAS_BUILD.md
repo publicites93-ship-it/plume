@@ -73,7 +73,32 @@ npx eas-cli@latest env:create \
 
 Puis ajouter `"environment": "preview"` au profil `preview` dans `eas.json`. Cette méthode garde l'URL hors du fichier.
 
-## 4. Lancer le build
+## 4. Monorepo et racine Git
+
+EAS compresse le dépôt à partir de sa **racine Git**, pas seulement le dossier `apps/mobile`. Deux erreurs courantes expliquent la plupart des échecs de build :
+
+1. **Un dépôt Git imbriqué dans `apps/mobile/`.** EAS prend alors `apps/mobile` comme racine et n'envoie ni `packages/shared`, ni le `package-lock.json` racine. Le build échoue sur `Unable to resolve "@plume/shared"` ou tente un `yarn install` sans lockfile. Il doit y avoir **un seul dépôt Git, à la racine du monorepo**.
+2. **Une dépendance de workspace non déclarée.** `apps/mobile/package.json` doit contenir `"@plume/shared": "*"`. Le lien fonctionne localement grâce à npm workspaces, mais EAS ne le devine pas.
+
+Vérifier la racine utilisée :
+
+```bash
+git rev-parse --show-toplevel
+# doit afficher la racine du monorepo, pas apps/mobile
+```
+
+Si `apps/mobile/.git` existe et ne contient aucun commit utile, le supprimer, puis initialiser un dépôt unique à la racine :
+
+```bash
+rm -rf apps/mobile/.git
+git init
+git add -A
+git commit -m "Prépare le build Android EAS"
+```
+
+Le dépôt doit contenir `package-lock.json`, `packages/shared/` et `apps/mobile/eas.json`. Le fichier `package.json` racine déclare `packageManager: "npm@10.9.8"` pour éviter qu'EAS bascule sur Yarn.
+
+## 5. Lancer le build
 
 Depuis `apps/mobile` :
 
@@ -95,7 +120,7 @@ Pour suivre sans interaction :
 npx eas-cli@latest build --platform android --profile preview --non-interactive --wait
 ```
 
-## 5. Installer sur le téléphone
+## 6. Installer sur le téléphone
 
 1. Ouvrir la page de build affichée par EAS sur le téléphone.
 2. Télécharger l'APK.
@@ -104,7 +129,7 @@ npx eas-cli@latest build --platform android --profile preview --non-interactive 
 
 Le lien de build est propre à chaque build. Il ne faut pas le confondre avec une page de projet Expo.
 
-## 6. Vérifier que l'API est réellement joignable
+## 7. Vérifier que l'API est réellement joignable
 
 Depuis le téléphone ou un autre réseau :
 
@@ -126,7 +151,7 @@ curl "https://api.votre-domaine.fr/trpc/health"
 
 Si ces appels échouent, l'APK s'installera mais l'authentification et les données resteront inaccessibles.
 
-## 7. Tunnel temporaire
+## 8. Tunnel temporaire
 
 Pour un test immédiat sans déploiement, un tunnel HTTPS temporaire peut exposer l'API locale :
 
@@ -145,7 +170,7 @@ Limites à annoncer clairement :
 
 Pour un test durable, déployer l'API sur un hébergeur avec HTTPS et une base PostgreSQL, puis utiliser cette URL dans le profil `preview`.
 
-## 8. Production
+## 9. Production
 
 Le profil `production` produit un AAB, pas un APK. Avant toute publication :
 
@@ -157,7 +182,7 @@ Le profil `production` produit un AAB, pas un APK. Avant toute publication :
 - politique de confidentialité réelle (remplacer l'URL `example.invalid`) ;
 - revue des accès aux manuscrits privés.
 
-## 9. Limites de l'environnement de développement
+## 10. Limites de l'environnement de développement
 
 - Pas de Java, pas d'Android SDK, pas de Xcode : aucun build natif local.
 - Le compilateur Hermes fourni est `linux64` (x86_64) et ne s'exécute pas sur l'environnement ARM64 actuel. Un `expo export --platform android --no-bytecode` permet de vérifier le bundle JavaScript, mais pas de produire un APK.
