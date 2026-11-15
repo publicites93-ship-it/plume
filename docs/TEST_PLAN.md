@@ -20,8 +20,9 @@
 | Test sur appareil physique | **Non testé** | Pas d'appareil connecté |
 | Audit visuel | **Non réalisé** | Pas de capture fiable dans cet environnement |
 | PostgreSQL réel | **Non testé** | PGlite uniquement |
+| Déploiement Docker/Render/Railway | **Non testé** | `Dockerfile`, `render.yaml` et `railway.json` préparés ; pas de Docker, `psql` ni CLI dans cet environnement |
 
-Le build EAS `9a70e677-0ed6-497e-8fd1-afaf00358fa0` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
+Le build EAS `9a70e677-0ed6-497e-8fd1-afaf00358fa0` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. Le tunnel Pinggy associé a expiré à 16:36 UTC : l'APK reste installable mais ne peut plus joindre l'API. Un déploiement durable est préparé dans `docs/DEPLOY_API.md`, mais n'a pas été exécuté ici. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
 
 ---
 

@@ -172,7 +172,16 @@ Limites à annoncer clairement :
 - les comptes de démonstration ont des mots de passe connus ;
 - ce n'est pas une solution de production.
 
-Pour un test durable, déployer l'API sur un hébergeur avec HTTPS et une base PostgreSQL, puis utiliser cette URL dans le profil `preview`.
+Pour un test durable, voir [docs/DEPLOY_API.md](DEPLOY_API.md) : Dockerfile, PostgreSQL, Railway et Render sont préparés. Utiliser ensuite l'URL permanente dans le profil `preview`.
+
+### Builds réalisés
+
+| Date | Build EAS | APK | État de l'API |
+| --- | --- | --- | --- |
+| 2026-11-15 14:18 UTC | `9c096b0f-6b99-4ec6-8ec1-a4175a9fe77d` | [APK](https://expo.dev/artifacts/eas/eSiftpIQ0tfVb8nJcffhVQ9jumpKjS9pJve1R3ybYjQ.apk) | Tunnel Pinggy expiré à 14:54 UTC |
+| 2026-11-15 15:52 UTC | `9a70e677-0ed6-497e-8fd1-afaf00358fa0` | [APK](https://expo.dev/artifacts/eas/9rT-2iH90C5l1P-h5SDKFy-UUvFZn_B286rm1cuI7RA.apk) | Tunnel Pinggy expiré à 16:36 UTC |
+
+Les deux APK sont installables, mais leurs URL d'API sont mortes. Un nouvel APK doit être construit après le déploiement durable.
 
 ## 9. Production
 

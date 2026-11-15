@@ -1,0 +1,30 @@
+# Blueprint Render pour l'API Plume.
+# La base PostgreSQL n'est pas créée ici : Render Free Postgres expire après
+# 30 jours et ne convient pas à un déploiement durable. Créez une base
+# PostgreSQL durable (Neon, Supabase, Railway, VPS) et renseignez DATABASE_URL.
+# Le service web gratuit Render peut se mettre en veille ; l'URL reste stable.
+# Pour une vraie production : SEED_DEMO=false, CORS_ORIGINS réel, sauvegardes.
+
+services:
+  - type: web
+    name: plume-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev --workspace @plume/api --workspace @plume/shared
+    startCommand: sh -c "npm run db:migrate --workspace @plume/api && if [ \"$SEED_DEMO\" = \"true\" ]; then npm run db:seed --workspace @plume/api; fi && npm run start --workspace @plume/api"
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://plume.app
+      - key: AI_PROVIDER
+        value: mock
+      - key: SEED_DEMO
+        value: "true"

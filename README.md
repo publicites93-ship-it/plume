@@ -4,7 +4,7 @@
 
 Le projet est une **phase 1 fonctionnelle** : authentification, manuscrits privés, chapitres, éditeur avec sauvegarde automatique, lecture publique, bible narrative, coach pédagogique simulé, ateliers d'écriture, réglages et export. Le backend, la base de données, les tests et la documentation sont inclus.
 
-> **Transparence.** Le coach utilise actuellement un moteur pédagogique **simulé et déterministe** (`AI_PROVIDER=mock`). Aucun appel à une IA générative payante n'est effectué. L'application n'a pas encore été compilée ni testée sur un appareil Android physique dans cet environnement. Voir [Limites connues](#limites-connues).
+> **Transparence.** Le coach utilise actuellement un moteur pédagogique **simulé et déterministe** (`AI_PROVIDER=mock`). Aucun appel à une IA générative payante n'est effectué. Un APK Android a été compilé via EAS Build, mais n'a pas encore été installé ni testé sur un appareil physique dans cet environnement. Voir [Limites connues](#limites-connues).
 
 ---
 
@@ -104,6 +104,9 @@ Le ton est littéraire mais l'interface reste lisible : nuit, parchemin, or anci
 │   └── shared/              Tokens, schémas Zod, contenu, utilitaires texte
 ├── docs/                    Spécification, architecture, design, base, IA, tests
 ├── scripts/                 Génération d'assets
+├── Dockerfile               Image de l'API pour un déploiement durable
+├── railway.json             Configuration Railway
+├── render.yaml              Blueprint Render (API + PostgreSQL)
 ├── .env.example
 ├── AGENTS.md
 └── README.md
@@ -187,6 +190,16 @@ npm run build:android:preview
 
 Détails, limites et procédure de test : [docs/EAS_BUILD.md](docs/EAS_BUILD.md).
 
+### Déployer l'API durablement
+
+Un tunnel gratuit expire et rend l'APK inutilisable. Pour un APK qui reste fonctionnel, déployez l'API avec PostgreSQL et HTTPS. Le dépôt fournit :
+
+- `Dockerfile` et `.dockerignore` ;
+- `railway.json` pour Railway ;
+- `render.yaml` pour Render (service web + PostgreSQL).
+
+La procédure complète, les variables et les commandes de vérification sont dans [docs/DEPLOY_API.md](docs/DEPLOY_API.md). Une fois l'API déployée, reconstruisez l'APK avec `EXPO_PUBLIC_API_URL=https://votre-domaine/trpc`.
+
 ### Vérifier l'API
 
 ```bash
@@ -224,6 +237,7 @@ Copiez `.env.example` vers `.env` à la racine si vous voulez personnaliser la c
 | `AI_PROVIDER` | `mock` | `mock` ou `gemini` |
 | `GEMINI_API_KEY` | vide | Clé Gemini, jamais commitée |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Modèle Gemini |
+| `SEED_DEMO` | non défini | `true` pour créer les comptes de démonstration dans le conteneur |
 | `EXPO_PUBLIC_API_URL` | selon plateforme | URL de l'API vue par le mobile |
 
 **Ne committez jamais de clé API ni de secret réel.** Le fichier `.env` est ignoré par Git.
@@ -319,6 +333,7 @@ En production, il faudra au minimum : HTTPS, `JWT_SECRET` fort, PostgreSQL manag
 - [Feuille de route](docs/ROADMAP.md)
 - [Décisions techniques](docs/DECISIONS.md)
 - [Plan de test](docs/TEST_PLAN.md)
+- [Déploiement de l'API](docs/DEPLOY_API.md)
 - [Guide agent](AGENTS.md)
 
 ---
