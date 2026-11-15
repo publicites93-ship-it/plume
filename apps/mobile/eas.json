@@ -15,9 +15,6 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://usofw-2a01-e34-ec52-e960-f6ce-858a-4d5b-415f.run.pinggy-free.link/trpc"
       }
     },
     "production": {

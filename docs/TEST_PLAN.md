@@ -21,7 +21,7 @@
 | Audit visuel | **Non réalisé** | Pas de capture fiable dans cet environnement |
 | PostgreSQL réel | **Non testé** | PGlite uniquement |
 
-Le build EAS `9c096b0f-6b99-4ec6-8ec1-a4175a9fe77d` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
+Le build EAS `9a70e677-0ed6-497e-8fd1-afaf00358fa0` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
 
 ---
 
