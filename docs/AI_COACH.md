@@ -155,7 +155,7 @@ Ne jamais retirer cet encart tant que le fournisseur par défaut est `mock`.
 ```bash
 AI_PROVIDER=gemini
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 ```
 
 ### Précautions

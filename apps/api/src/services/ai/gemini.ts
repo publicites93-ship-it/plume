@@ -176,7 +176,9 @@ export class GeminiProvider implements AIProvider {
           generationConfig: {
             temperature,
             responseMimeType: "application/json",
-            maxOutputTokens,
+            // Les modèles Gemini 3 décomptent leur raisonnement interne de cette
+            // limite : la marge évite un JSON tronqué (finishReason MAX_TOKENS).
+            maxOutputTokens: maxOutputTokens + 8192,
           },
         }),
         signal: AbortSignal.timeout(90_000),

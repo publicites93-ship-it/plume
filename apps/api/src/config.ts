@@ -12,7 +12,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL: z.coerce.number().int().positive().default(2_592_000),
   AI_PROVIDER: z.enum(["mock", "gemini"]).default("mock"),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.8-flash"),
   EMAIL_PROVIDER: z.enum(["console", "resend", "test"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Plume <no-reply@plume.app>"),
