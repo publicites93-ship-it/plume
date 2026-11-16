@@ -26,5 +26,21 @@ services:
         value: https://plume.app
       - key: AI_PROVIDER
         value: mock
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: SEED_DEMO
-        value: "true"
+        value: "false"
+      - key: PUBLIC_APP_URL
+        value: https://plume-api.onrender.com
+      - key: EMAIL_PROVIDER
+        value: console
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "false"
+      - key: LEGAL_CONTACT_EMAIL
+        value: plume.lecture.ia@gmail.com

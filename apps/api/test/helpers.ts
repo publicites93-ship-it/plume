@@ -9,6 +9,8 @@ import { users } from "../src/db/schema";
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-secret-with-at-least-32-characters-long";
 process.env.AI_PROVIDER = "mock";
+process.env.EMAIL_PROVIDER = "test";
+process.env.REQUIRE_EMAIL_VERIFICATION = "false";
 
 export interface TestContext {
   handle: DatabaseHandle;
@@ -36,20 +38,26 @@ export interface TestUser {
   caller: ReturnType<typeof appRouter.createCaller>;
 }
 
+export const TEST_PASSWORD = "PlumeTest2026";
+
 export async function registerUser(
   db: Database,
-  options: { email?: string; pseudonym?: string } = {},
+  options: { email?: string; pseudonym?: string; password?: string } = {},
 ): Promise<TestUser> {
   const suffix = randomUUID().slice(0, 8);
   const email = options.email ?? `test-${suffix}@plume.test`;
   const pseudonym = options.pseudonym ?? `Testeur ${suffix}`;
+  const password = options.password ?? TEST_PASSWORD;
   const caller = publicCaller(db);
   const result = await caller.auth.signUp({
     email,
-    password: "PlumeTest1",
+    password,
     pseudonym,
     acceptedTerms: true,
   });
+  if (!result.tokens) {
+    throw new Error("L'inscription de test a nécessité une vérification d'e-mail.");
+  }
   const context = await createContext({
     db,
     authorization: `Bearer ${result.tokens.accessToken}`,

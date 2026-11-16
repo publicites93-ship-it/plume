@@ -7,6 +7,8 @@ import { createDatabase, type Database, type DatabaseHandle } from "./db/client"
 import { runMigrations } from "./db/migrate";
 import { createContext } from "./trpc/trpc";
 import { appRouter } from "./trpc/router";
+import { registerLegalRoutes } from "./routes/legal";
+import { registerAuthPages } from "./routes/authPages";
 
 export interface BuildAppOptions {
   db?: Database;
@@ -77,6 +79,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
     return payload;
   });
 
+  // Les pages web de réinitialisation utilisent un formulaire HTML classique.
+  // Le corps reste petit et n'est jamais journalisé.
+  app.addContentTypeParser(
+    "application/x-www-form-urlencoded",
+    { parseAs: "string" },
+    (_request, body, done) => {
+      try {
+        done(null, Object.fromEntries(new URLSearchParams(String(body))));
+      } catch (error) {
+        done(error as Error);
+      }
+    },
+  );
+
   await app.register(fastifyTRPCPlugin, {
     prefix: "/trpc",
     trpcOptions: {
@@ -95,7 +111,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
     },
   });
 
-  app.get("/health", async () => ({ ok: true, service: "plume-api" }));
+  app.get("/health", async () => ({
+    ok: true,
+    service: "plume-api",
+    ai: config.AI_PROVIDER,
+    email: config.EMAIL_PROVIDER,
+    emailVerification: config.REQUIRE_EMAIL_VERIFICATION,
+  }));
+
+  await registerLegalRoutes(app);
+  await registerAuthPages(app, db);
 
   app.setErrorHandler((error: unknown, _request, reply) => {
     const normalized = error as { message?: string; code?: string };

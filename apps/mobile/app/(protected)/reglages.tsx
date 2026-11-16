@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Switch, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { fontScaleOptions, spacing } from "@plume/shared";
 import {
   Badge,
@@ -31,9 +32,14 @@ export default function SettingsScreen() {
   const me = trpc.auth.me.useQuery(undefined);
   const updatePreferences = trpc.auth.updatePreferences.useMutation();
   const changePassword = trpc.auth.changePassword.useMutation();
+  const resendVerification = trpc.auth.resendVerification.useMutation();
   const exportData = trpc.auth.exportData.useMutation();
   const deleteAccount = trpc.auth.deleteAccount.useMutation();
   const clearSession = useAuthStore((state) => state.clearSession);
+  const appVersion = Constants.expoConfig?.version ?? "0.2.0";
+  const legalUrl =
+    (Constants.expoConfig?.extra as { privacyPolicyUrl?: string } | undefined)
+      ?.privacyPolicyUrl ?? "https://plume-api.onrender.com/confidentialite";
 
   const fontScale = useUiStore((state) => state.fontScale);
   const setFontScale = useUiStore((state) => state.setFontScale);
@@ -102,6 +108,16 @@ export default function SettingsScreen() {
     }
   }
 
+  async function resendEmailVerification() {
+    if (!me.data) return;
+    try {
+      await resendVerification.mutateAsync({ email: me.data.user.email });
+      toast("E-mail de vérification envoyé. Vérifiez aussi les indésirables.", "success");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    }
+  }
+
   async function exportAccount() {
     try {
       const data = await exportData.mutateAsync();
@@ -147,7 +163,6 @@ export default function SettingsScreen() {
   }
 
   const preferences = me.data.preferences;
-  const notifications = preferences.notifications;
 
   return (
     <Screen>
@@ -155,7 +170,7 @@ export default function SettingsScreen() {
         back
         eyebrow="Votre espace"
         title="Réglages"
-        subtitle="Confort de lecture, écriture, notifications et données personnelles."
+        subtitle="Confort de lecture, écriture et données personnelles."
       />
 
       <SectionHeader title="Taille du texte" eyebrow="Accessibilité" />
@@ -283,42 +298,6 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      <SectionHeader title="Notifications" eyebrow="Préférences" />
-      <Card padded={false}>
-        <View style={styles.switchPad}>
-          <NotificationRow
-            title="Nouveaux chapitres"
-            subtitle="Des histoires que vous suivez"
-            value={notifications.newChapters}
-            onChange={(value) => void syncPreference({ notifications: { newChapters: value } })}
-          />
-          <NotificationRow
-            title="Commentaires"
-            subtitle="Réactions à vos textes publiés"
-            value={notifications.comments}
-            onChange={(value) => void syncPreference({ notifications: { comments: value } })}
-          />
-          <NotificationRow
-            title="Coach et analyses"
-            subtitle="Rappels de méthode et diagnostics terminés"
-            value={notifications.coaching}
-            onChange={(value) => void syncPreference({ notifications: { coaching: value } })}
-          />
-          <NotificationRow
-            title="Progression"
-            subtitle="Récapitulatif de vos compétences"
-            value={notifications.progress}
-            onChange={(value) => void syncPreference({ notifications: { progress: value } })}
-          />
-        </View>
-        <View style={styles.noticePad}>
-          <InlineNotice tone="warning">
-            Les notifications push ne sont pas branchées dans cette version. Ces préférences sont
-            enregistrées côté serveur et seront respectées par le futur service d'envoi.
-          </InlineNotice>
-        </View>
-      </Card>
-
       <SectionHeader title="Compte" eyebrow="Sécurité" />
       <Card padded={false}>
         <View style={styles.listPad}>
@@ -328,9 +307,12 @@ export default function SettingsScreen() {
             subtitle={
               me.data.user.emailVerified
                 ? "Vérifiée"
-                : "Non vérifiée — l'envoi d'e-mails n'est pas actif dans cette version"
+                : "Non vérifiée — appuyez pour renvoyer le lien de confirmation"
             }
             rightText={me.data.user.email}
+            onPress={
+              me.data.user.emailVerified ? undefined : () => void resendEmailVerification()
+            }
           />
           <ListRow
             icon="key-outline"
@@ -348,6 +330,12 @@ export default function SettingsScreen() {
             onPress={() => void exportAccount()}
           />
           <ListRow
+            icon="shield-checkmark-outline"
+            title="Confidentialité et conditions"
+            subtitle="Politique de confidentialité, conditions d'utilisation et suppression"
+            onPress={() => void Linking.openURL(legalUrl)}
+          />
+          <ListRow
             icon="trash-outline"
             title="Supprimer mon compte"
             subtitle="Effacement définitif des manuscrits et données associées"
@@ -363,17 +351,16 @@ export default function SettingsScreen() {
       <SectionHeader title="À propos" eyebrow="Version" />
       <Card style={styles.card}>
         <View style={styles.aboutRow}>
-          <Badge tone="gold">Plume 0.1.0</Badge>
-          <Badge tone="muted">Démonstration</Badge>
+          <Badge tone="gold">{`Plume ${appVersion}`}</Badge>
         </View>
         <Text variant="caption" color={theme.textSecondary}>
-          Application de démonstration. Le coach utilise un moteur pédagogique simulé et
-          déterministe ; aucune IA générative payante n'est appelée. La vérification d'e-mail, la
-          réinitialisation de mot de passe et les notifications push sont préparées côté données
-          mais ne sont pas branchées.
+          Plume est un atelier d'écriture et une bibliothèque de lecture. Le coach observe,
+          questionne et propose des exercices ; il ne réécrit jamais votre texte. Les citations
+          présentées comme provenant de votre manuscrit sont vérifiées côté serveur.
         </Text>
         <Text variant="caption" color={theme.textMuted}>
-          Aucun paiement n'est activé. Les formules présentées sont des enveloppes de quotas.
+          Vos manuscrits privés restent accessibles à vous seul. Vous pouvez exporter vos données
+          ou supprimer votre compte à tout moment.
         </Text>
       </Card>
 
@@ -462,36 +449,6 @@ export default function SettingsScreen() {
   );
 }
 
-function NotificationRow({
-  title,
-  subtitle,
-  value,
-  onChange,
-}: {
-  title: string;
-  subtitle: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <View style={styles.switchRow}>
-      <View style={styles.flex}>
-        <Text variant="bodyStrong">{title}</Text>
-        <Text variant="caption" color={theme.textMuted}>
-          {subtitle}
-        </Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: palette.inkSoft, true: "rgba(197,164,106,0.55)" }}
-        thumbColor={value ? palette.goldBright : palette.parchmentDeep}
-        accessibilityLabel={title}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   card: {
@@ -562,9 +519,6 @@ const styles = StyleSheet.create({
     minHeight: 68,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(197,164,106,0.12)",
-  },
-  noticePad: {
-    padding: spacing[4],
   },
   listPad: {
     paddingHorizontal: spacing[4],

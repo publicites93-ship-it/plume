@@ -30,6 +30,7 @@ export default function LearnScreen() {
   const router = useRouter();
   const progress = trpc.ai.progress.useQuery();
   const learning = trpc.learning.skills.useQuery();
+  const me = trpc.auth.me.useQuery(undefined);
 
   const skills = progress.data?.skills ?? SKILLS.map((skill) => ({
     ...skill,
@@ -230,7 +231,7 @@ export default function LearnScreen() {
           ))}
         </View>
         <View style={styles.methodNotice}>
-          <SimulationNotice />
+          {me.data?.coach.isSimulation ? <SimulationNotice /> : null}
         </View>
         <Button
           label="Voir la méthode complète"

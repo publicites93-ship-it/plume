@@ -121,6 +121,31 @@ export const refreshTokens = pgTable(
   ],
 );
 
+export const authTokenKindEnum = pgEnum("auth_token_kind", [
+  "email_verification",
+  "password_reset",
+]);
+
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: authTokenKindEnum("kind").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("auth_tokens_hash_unique").on(table.tokenHash),
+    index("auth_tokens_user_kind_idx").on(table.userId, table.kind),
+    index("auth_tokens_expires_idx").on(table.expiresAt),
+  ],
+);
+
 export const stories = pgTable(
   "stories",
   {
@@ -274,7 +299,10 @@ export const readingProgress = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("reading_progress_unique").on(table.userId, table.storyId)],
+  (table) => [
+    uniqueIndex("reading_progress_unique").on(table.userId, table.storyId),
+    index("reading_progress_story_idx").on(table.storyId),
+  ],
 );
 
 export const bookmarks = pgTable(
@@ -341,7 +369,10 @@ export const comments = pgTable(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("comments_story_idx").on(table.storyId, table.createdAt)],
+  (table) => [
+    index("comments_story_idx").on(table.storyId, table.createdAt),
+    index("comments_chapter_idx").on(table.chapterId, table.createdAt),
+  ],
 );
 
 export const reactions = pgTable(
@@ -358,6 +389,45 @@ export const reactions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("reactions_unique").on(table.commentId, table.userId, table.kind)],
+);
+
+export const storyReactions = pgTable(
+  "story_reactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("story_reactions_unique").on(table.storyId, table.userId, table.kind),
+    index("story_reactions_story_idx").on(table.storyId, table.kind),
+  ],
+);
+
+export const chapterLikes = pgTable(
+  "chapter_likes",
+  {
+    chapterId: uuid("chapter_id")
+      .notNull()
+      .references(() => chapters.id, { onDelete: "cascade" }),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.chapterId, table.userId] }),
+    index("chapter_likes_story_idx").on(table.storyId),
+  ],
 );
 
 export const notifications = pgTable(
@@ -531,18 +601,31 @@ export const skillAssessments = pgTable(
   (table) => [index("assessments_user_skill_idx").on(table.userId, table.skill, table.createdAt)],
 );
 
-export const exerciseAttempts = pgTable("exercise_attempts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  exerciseId: text("exercise_id").notNull(),
-  storyId: uuid("story_id").references(() => stories.id, { onDelete: "cascade" }),
-  content: text("content").notNull().default(""),
-  status: text("status").notNull().default("started"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const exerciseAttempts = pgTable(
+  "exercise_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    exerciseId: text("exercise_id").notNull(),
+    storyId: uuid("story_id").references(() => stories.id, { onDelete: "cascade" }),
+    content: text("content").notNull().default(""),
+    status: text("status").notNull().default("started"),
+    feedback: text("feedback"),
+    strengths: jsonb("strengths").$type<string[]>().notNull().default([]),
+    improvements: jsonb("improvements").$type<string[]>().notNull().default([]),
+    nextStep: text("next_step"),
+    score: integer("score"),
+    confidence: real("confidence"),
+    feedbackProvider: text("feedback_provider"),
+    feedbackModel: text("feedback_model"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("exercise_attempts_user_idx").on(table.userId, table.createdAt)],
+);
 
 export const coachingSessions = pgTable("coaching_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),

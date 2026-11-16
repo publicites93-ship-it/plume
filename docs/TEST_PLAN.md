@@ -284,7 +284,7 @@ Cette matrice n'a **pas** été exécutée. Elle doit l'être avant toute livrai
 Avant chaque livraison :
 
 1. `npm run test --workspace @plume/shared` → 10/10.
-2. `NODE_OPTIONS=--max-old-space-size=4096 npm run test --workspace @plume/api` → 42/42.
+2. `NODE_OPTIONS=--max-old-space-size=4096 npm run test --workspace @plume/api` → 57/57 (8 fichiers, dont `auth-email`, `ai-failure`, `social`).
 3. Typecheck API et mobile → passe.
 4. Bundle web → compile.
 5. Aucun secret dans le dépôt (`git grep` sur les motifs de clés).
@@ -293,6 +293,23 @@ Avant chaque livraison :
 8. Une citation inventée est retirée.
 9. Une demande de réécriture est refusée.
 10. Un conflit de version n'écrase jamais silencieusement le texte.
+
+---
+
+## 9 bis. Vérifications du 16/11/2026 (cahier de modifications)
+
+Vérifié localement :
+
+- Tests shared 10/10, tests API 57/57, typecheck API et mobile OK.
+- Migrations `0001` (jetons e-mail), `0002` (corrections d'exercices), `0003` (réactions, J'aime, index) appliquées sur PGlite.
+- `expo export --platform android --no-bytecode` compile le bundle JS (4,4 Mo). La compilation Hermes locale échoue : le binaire `hermesc` fourni est x86-64 et la machine est aarch64. EAS compile Hermes côté cloud.
+- Tests `social` : compteurs de réactions partagés entre deux lecteurs, J'aime par chapitre, favoris, lecteurs distincts, modération des commentaires par l'auteur, `NOT_FOUND` sur une histoire privée.
+
+Non vérifié :
+
+- Aucun nouvel APK construit avec ces changements ; taille < 40 Mo non mesurée.
+- Aucun rendu visuel de l'écran de lecture (réactions, commentaires) n'a été inspecté.
+- Coach IA réel, e-mails Resend, purge démo en production : en attente de clés et de décisions.
 
 ---
 

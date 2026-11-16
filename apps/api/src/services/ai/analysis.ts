@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import {
   SKILLS,
+  WORKSHOPS,
   citationExists,
   countWords,
   levelForScore,
@@ -15,6 +16,7 @@ import {
   chapterVersions,
   coachingMessages,
   coachingSessions,
+  exerciseAttempts,
   skillAssessments,
   stories,
 } from "../../db/schema";
@@ -219,6 +221,198 @@ export async function analyzeChapter(
   }
 }
 
+/**
+ * Analyse globale : une seule action, un seul décompte de crédits, sept
+ * lectures persistées. Les appels au fournisseur ont lieu avant toute
+ * écriture : un échec ne laisse ni analyse partielle ni crédit débité.
+ */
+export async function analyzeStory(
+  db: Database,
+  userId: string,
+  input: { storyId: string; chapterId: string },
+) {
+  const [row] = await db
+    .select({ story: stories, chapter: chapters })
+    .from(chapters)
+    .innerJoin(stories, eq(stories.id, chapters.storyId))
+    .where(
+      and(
+        eq(chapters.id, input.chapterId),
+        eq(stories.id, input.storyId),
+        isNull(chapters.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!row || row.story.authorId !== userId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Chapitre introuvable." });
+  }
+  if (countWords(row.chapter.content) < 30) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Le passage est trop court pour une analyse utile (30 mots minimum).",
+    });
+  }
+
+  const [existingVersion] = await db
+    .select()
+    .from(chapterVersions)
+    .where(
+      and(
+        eq(chapterVersions.chapterId, row.chapter.id),
+        eq(chapterVersions.versionNumber, row.chapter.version),
+      ),
+    )
+    .limit(1);
+  let versionId = existingVersion?.id;
+  if (!versionId) {
+    const [created] = await db
+      .insert(chapterVersions)
+      .values({
+        chapterId: row.chapter.id,
+        storyId: row.story.id,
+        versionNumber: row.chapter.version,
+        title: row.chapter.title,
+        content: row.chapter.content,
+        wordCount: row.chapter.wordCount,
+        contentHash: contentHash(row.chapter.content),
+        reason: "ai_snapshot",
+        createdBy: userId,
+      })
+      .returning();
+    versionId = created?.id;
+  }
+
+  await assertAiQuota(db, userId, "multi_chapter_analysis");
+  const provider = getAIProvider();
+  const draft = await provider.analyzeStory({
+    storyTitle: row.story.title,
+    chapterTitle: row.chapter.title,
+    manuscript: row.chapter.content,
+  });
+
+  const expected = new Set(SKILLS.map((skill) => skill.id));
+  const seen = new Set<SkillId>();
+  for (const analysis of draft.analyses) {
+    if (!expected.has(analysis.skill) || seen.has(analysis.skill)) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          "Le coach n'a pas pu produire les sept lectures attendues. Aucun crédit n'a été débité.",
+      });
+    }
+    seen.add(analysis.skill);
+  }
+  if (seen.size !== SKILLS.length) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Le coach n'a pas pu produire les sept lectures attendues. Aucun crédit n'a été débité.",
+    });
+  }
+
+  const results = await db.transaction(async (tx) => {
+    const created: Array<{ id: string; skill: SkillId; score: number; summary: string }> = [];
+    for (const item of draft.analyses) {
+      const findings = verifyFindings(item.findings, row.chapter.content);
+      const confidence = draft.isSimulation
+        ? Math.min(item.confidence, 0.4)
+        : Math.max(0.1, Math.min(0.95, item.confidence));
+      const [analysis] = await tx
+        .insert(aiAnalyses)
+        .values({
+          userId,
+          storyId: row.story.id,
+          chapterId: row.chapter.id,
+          chapterVersionId: versionId ?? null,
+          skill: item.skill,
+          scope: "chapter",
+          status: "completed",
+          provider: draft.provider,
+          model: draft.model,
+          summary: item.summary,
+          score: Math.round(item.score),
+          confidence,
+          inputTokens: Math.round(draft.inputTokens / SKILLS.length),
+          outputTokens: Math.round(draft.outputTokens / SKILLS.length),
+          completedAt: new Date(),
+        })
+        .returning();
+      if (!analysis) throw new Error("Création de l'analyse globale impossible.");
+      await tx.insert(analysisFindings).values(
+        findings.map((finding, index) => ({
+          analysisId: analysis.id,
+          kind: finding.kind,
+          title: finding.title,
+          observation: finding.observation,
+          quote: finding.quote,
+          explanation: finding.explanation,
+          impact: finding.impact,
+          priority: finding.priority,
+          confidence: finding.confidence,
+          recommendation: finding.recommendation,
+          exercise: finding.exercise,
+          orderIndex: index,
+        })),
+      );
+      await tx.insert(skillAssessments).values({
+        userId,
+        storyId: row.story.id,
+        analysisId: analysis.id,
+        skill: item.skill,
+        score: Math.round(item.score),
+        confidence,
+        methodVersion: "plume-rubric-v1",
+      });
+      created.push({
+        id: analysis.id,
+        skill: item.skill,
+        score: analysis.score ?? Math.round(item.score),
+        summary: item.summary,
+      });
+    }
+    return created;
+  });
+
+  await recordAiUsage(db, {
+    userId,
+    storyId: row.story.id,
+    taskKind: "multi_chapter_analysis",
+    provider: draft.provider,
+    model: draft.model,
+    inputTokens: draft.inputTokens,
+    outputTokens: draft.outputTokens,
+  });
+
+  return {
+    chapterId: row.chapter.id,
+    chapterTitle: row.chapter.title,
+    isSimulation: draft.isSimulation,
+    analyses: results,
+  };
+}
+
+function verifyFindings(
+  findings: Array<{
+    quote: string | null;
+    kind: string;
+    title: string;
+    observation: string;
+    explanation: string;
+    impact: string | null;
+    priority: string;
+    confidence: number;
+    recommendation: string | null;
+    exercise: string | null;
+  }>,
+  manuscript: string,
+) {
+  return findings.map((finding) => ({
+    ...finding,
+    quote:
+      finding.quote && citationExists(finding.quote, manuscript) ? finding.quote : null,
+  }));
+}
+
 export async function getAnalysis(db: Database, analysisId: string, userId: string) {
   const [analysis] = await db
     .select({
@@ -349,12 +543,34 @@ export async function sendCoachingMessage(
   userId: string,
   input: { sessionId: string; content: string },
 ) {
-  const { session } = await getCoachingSession(db, input.sessionId, userId);
+  const { session, messages } = await getCoachingSession(db, input.sessionId, userId);
+  const content = input.content.trim();
+
+  // Une demande de réécriture est refusée sans appeler le fournisseur et sans
+  // consommer de crédit : aucune analyse n'a été produite.
+  if (REWRITE_REQUEST.test(content)) {
+    const [userMessage] = await db
+      .insert(coachingMessages)
+      .values({ sessionId: session.id, role: "user", content })
+      .returning();
+    const [assistantMessage] = await db
+      .insert(coachingMessages)
+      .values({
+        sessionId: session.id,
+        role: "assistant",
+        content:
+          "Je ne réécris pas vos passages : ce serait vous priver du travail qui fait progresser. En revanche, je peux vous aider à voir ce qui produit l'effet recherché, puis vous proposer une contrainte d'écriture pour le retravailler vous-même. Quel effet voulez-vous que le lecteur ressente à cet endroit ?",
+        citations: [],
+      })
+      .returning();
+    await db
+      .update(coachingSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(coachingSessions.id, session.id));
+    return { userMessage, assistantMessage, citations: [] };
+  }
+
   await assertAiQuota(db, userId, "coach_chat");
-  const [userMessage] = await db
-    .insert(coachingMessages)
-    .values({ sessionId: session.id, role: "user", content: input.content })
-    .returning();
 
   const [latest] = await db
     .select()
@@ -369,45 +585,85 @@ export async function sendCoachingMessage(
     .orderBy(desc(aiAnalyses.createdAt))
     .limit(1);
 
-  let reply: string;
-  const citations: Array<{ chapterId: string; quote: string }> = [];
-  if (REWRITE_REQUEST.test(input.content)) {
-    reply =
-      "Je ne réécris pas vos passages : ce serait vous priver du travail qui fait progresser. En revanche, je peux vous aider à voir ce qui produit l'effet recherché, puis vous proposer une contrainte d'écriture pour le retravailler vous-même. Quel effet voulez-vous que le lecteur ressente à cet endroit ?";
-  } else if (!latest) {
-    reply =
-      "Je n'ai pas encore de diagnostic sur cette histoire. Lancez d'abord une analyse de chapitre depuis l'onglet Coach : nous aurons alors des constats précis et des citations réelles à examiner ensemble. En attendant, dites-moi ce qui vous bloque le plus dans la scène en cours.";
-  } else {
-    const findings = await db
-      .select()
-      .from(analysisFindings)
-      .where(eq(analysisFindings.analysisId, latest.id))
-      .orderBy(asc(analysisFindings.orderIndex))
-      .limit(4);
-    const quoted = findings.find((f) => f.quote);
-    if (quoted?.quote && latest.chapterId) {
-      citations.push({ chapterId: latest.chapterId, quote: quoted.quote });
-    }
-    const improvement = findings.find((f) => f.kind === "improvement");
-    reply = [
-      `D'après votre dernier diagnostic (compétence « ${latest.skill} », confiance ${
-        latest.confidence ? Math.round(latest.confidence * 100) : 35
-      } %), le point le plus utile à travailler me semble être : ${
-        improvement?.observation ?? "la mise en relation entre l'information et la décision du personnage."
-      }`,
-      quoted?.quote
-        ? `Le passage qui appuie cette observation est : « ${quoted.quote} ».`
-        : "Je ne retrouve pas de citation vérifiable dans ce diagnostic : je préfère ne pas en inventer.",
-      improvement?.recommendation
-        ? `Méthode proposée : ${improvement.recommendation}`
-        : "Méthode proposée : relisez la scène en notant, pour chaque paragraphe, ce qui change pour le personnage. Si rien ne change, demandez-vous quelle décision pourrait rendre le paragraphe nécessaire.",
-      "Je ne toucherai pas à votre texte. Essayez une modification, puis demandez une comparaison : nous regarderons ensemble ce que votre choix produit sur le lecteur.",
-    ].join("\n\n");
+  const chapterRow = latest?.chapterId
+    ? (
+        await db
+          .select({ id: chapters.id, title: chapters.title, content: chapters.content })
+          .from(chapters)
+          .where(and(eq(chapters.id, latest.chapterId), eq(chapters.storyId, session.storyId)))
+          .limit(1)
+      )[0]
+    : undefined;
+
+  const findings = latest
+    ? await db
+        .select()
+        .from(analysisFindings)
+        .where(eq(analysisFindings.analysisId, latest.id))
+        .orderBy(asc(analysisFindings.orderIndex))
+        .limit(6)
+    : [];
+  const evidence = findings
+    .filter((finding) => finding.quote)
+    .map((finding) => ({
+      quote: finding.quote!,
+      observation: finding.observation,
+      recommendation: finding.recommendation,
+      skill: latest?.skill ?? "global",
+    }));
+
+  const storyRow = (
+    await db
+      .select({ title: stories.title })
+      .from(stories)
+      .where(eq(stories.id, session.storyId))
+      .limit(1)
+  )[0];
+
+  const provider = getAIProvider();
+  let draft;
+  try {
+    draft = await provider.coachReply({
+      storyTitle: storyRow?.title ?? "Votre histoire",
+      chapterTitle: chapterRow?.title ?? null,
+      chapterExcerpt: chapterRow?.content.slice(0, 12_000) ?? null,
+      evidence,
+      history: messages.slice(-8).map((message) => ({
+        role: message.role === "user" ? "user" : "assistant",
+        content: message.content,
+      })),
+      message: content,
+    });
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Le coach n'a pas pu répondre. Aucun crédit n'a été débité ; vous pouvez réessayer.",
+    });
   }
 
+  const manuscript = chapterRow?.content ?? "";
+  const verifiedCitations = draft.citations
+    .filter((quote) => manuscript.length > 0 && citationExists(quote, manuscript))
+    .slice(0, 3)
+    .map((quote) => ({ chapterId: chapterRow!.id, quote }));
+  const reply = sanitizeQuotedClaims(draft.reply, manuscript);
+  if (countWords(reply) < 5) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "La réponse du coach n'a pas pu être vérifiée. Aucun crédit n'a été débité ; vous pouvez réessayer.",
+    });
+  }
+
+  const [userMessage] = await db
+    .insert(coachingMessages)
+    .values({ sessionId: session.id, role: "user", content })
+    .returning();
   const [assistantMessage] = await db
     .insert(coachingMessages)
-    .values({ sessionId: session.id, role: "assistant", content: reply, citations })
+    .values({ sessionId: session.id, role: "assistant", content: reply, citations: verifiedCitations })
     .returning();
   await db
     .update(coachingSessions)
@@ -417,12 +673,139 @@ export async function sendCoachingMessage(
     userId,
     storyId: session.storyId,
     taskKind: "coach_chat",
-    provider: "mock",
-    model: "plume-coach-chat-v1",
-    inputTokens: Math.ceil(input.content.length / 4) + 400,
-    outputTokens: Math.ceil(reply.length / 4),
+    provider: draft.provider,
+    model: draft.model,
+    inputTokens: draft.inputTokens,
+    outputTokens: draft.outputTokens,
   });
-  return { userMessage, assistantMessage, citations };
+  return { userMessage, assistantMessage, citations: verifiedCitations };
+}
+
+/**
+ * Retire toute citation qui ne se trouve pas mot pour mot dans le manuscrit.
+ * Le coach peut commenter, mais jamais fabriquer une preuve.
+ */
+export function sanitizeQuotedClaims(reply: string, manuscript: string): string {
+  return reply.replace(/«\s*([^»]{8,600})\s*»/g, (match, quote: string) => {
+    if (manuscript && citationExists(quote, manuscript)) return match;
+    return "(citation retirée : non vérifiée dans le manuscrit)";
+  });
+}
+
+export async function reviewExerciseAttempt(
+  db: Database,
+  userId: string,
+  input: {
+    exerciseId: string;
+    content: string;
+    storyId?: string;
+    attemptId?: string;
+  },
+) {
+  const exercise = WORKSHOPS.flatMap((workshop) =>
+    workshop.exercises.map((item) => ({ workshop, exercise: item })),
+  ).find((item) => item.exercise.id === input.exerciseId);
+  if (!exercise) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Exercice introuvable." });
+  }
+  if (countWords(input.content) < 30) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "Votre essai est trop court pour une correction utile (30 mots minimum). Aucun crédit n'a été débité.",
+    });
+  }
+
+  await assertAiQuota(db, userId, "exercise_generation");
+  const provider = getAIProvider();
+  let draft;
+  try {
+    draft = await provider.reviewExercise({
+      exerciseTitle: exercise.exercise.title,
+      instructions: exercise.exercise.instructions,
+      criteria: exercise.exercise.criteria,
+      skillName: exercise.workshop.title,
+      content: input.content,
+    });
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Le coach n'a pas pu corriger cet exercice. Aucun crédit n'a été débité ; vous pouvez réessayer.",
+    });
+  }
+
+  let row;
+  if (input.attemptId) {
+    [row] = await db
+      .update(exerciseAttempts)
+      .set({
+        content: input.content,
+        status: "reviewed",
+        feedback: draft.feedback,
+        strengths: draft.strengths,
+        improvements: draft.improvements,
+        nextStep: draft.nextStep,
+        score: draft.score === null ? null : Math.round(draft.score),
+        confidence: draft.confidence,
+        feedbackProvider: draft.provider,
+        feedbackModel: draft.model,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(exerciseAttempts.id, input.attemptId), eq(exerciseAttempts.userId, userId)),
+      )
+      .returning();
+  } else {
+    [row] = await db
+      .insert(exerciseAttempts)
+      .values({
+        userId,
+        exerciseId: input.exerciseId,
+        storyId: input.storyId ?? null,
+        content: input.content,
+        status: "reviewed",
+        feedback: draft.feedback,
+        strengths: draft.strengths,
+        improvements: draft.improvements,
+        nextStep: draft.nextStep,
+        score: draft.score === null ? null : Math.round(draft.score),
+        confidence: draft.confidence,
+        feedbackProvider: draft.provider,
+        feedbackModel: draft.model,
+        reviewedAt: new Date(),
+      })
+      .returning();
+  }
+  if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Essai introuvable." });
+
+  await recordAiUsage(db, {
+    userId,
+    storyId: input.storyId,
+    taskKind: "exercise_generation",
+    provider: draft.provider,
+    model: draft.model,
+    inputTokens: draft.inputTokens,
+    outputTokens: draft.outputTokens,
+  });
+  return row;
+}
+
+export async function listExerciseAttempts(
+  db: Database,
+  userId: string,
+  input: { exerciseId?: string; limit: number },
+) {
+  const conditions = [eq(exerciseAttempts.userId, userId)];
+  if (input.exerciseId) conditions.push(eq(exerciseAttempts.exerciseId, input.exerciseId));
+  return db
+    .select()
+    .from(exerciseAttempts)
+    .where(and(...conditions))
+    .orderBy(desc(exerciseAttempts.createdAt))
+    .limit(input.limit);
 }
 
 export async function analysesForChapter(

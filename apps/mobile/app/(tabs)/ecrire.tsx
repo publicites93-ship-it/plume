@@ -140,11 +140,11 @@ export default function WriteScreen() {
                 Coach IA
               </Text>
               <Text variant="caption" color={theme.gold}>
-                {formatNumber(plan!.tokensRemaining)} restants
+                {formatNumber(plan!.creditsRemaining)} crédits restants
               </Text>
             </View>
             <ProgressBar
-              value={plan!.tokensLimit ? plan!.tokensRemaining / plan!.tokensLimit : 0}
+              value={plan!.creditsLimit ? plan!.creditsRemaining / plan!.creditsLimit : 0}
               height={4}
             />
           </View>
@@ -227,8 +227,8 @@ export default function WriteScreen() {
             <Text variant="bodyStrong">Le coach ne tient jamais la plume</Text>
             <Text variant="caption" color={theme.textMuted}>
               Il ne réécrit pas vos phrases et n'invente pas de citations. Il nomme ce qui produit
-              un effet, pose des questions et propose des exercices. Chaque diagnostic simulé est
-              signalé comme tel.
+              un effet, pose des questions et propose des exercices. Chaque diagnostic est daté et
+              accompagné d'un niveau de confiance.
             </Text>
           </View>
         </View>
@@ -343,7 +343,7 @@ export default function WriteScreen() {
         visible={plansOpen}
         onClose={() => setPlansOpen(false)}
         title="Formules Plume"
-        subtitle="Les limites sont appliquées côté serveur. Aucun paiement n'est activé dans cette version."
+        subtitle="Les limites sont appliquées côté serveur. Chaque formule précise ses crédits coach et ses fonctions d'écriture."
       >
         {Object.values(PLANS).map((definition) => (
           <Card

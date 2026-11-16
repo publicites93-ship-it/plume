@@ -14,12 +14,12 @@ export function errorMessage(error: unknown): string {
   if (error instanceof TRPCClientError) {
     if (error.message && error.message !== "Failed to fetch") return error.message;
     if (error.message === "Failed to fetch") {
-      return "Le serveur est injoignable. Votre travail reste enregistré localement.";
+      return "Démarrage du serveur, cela peut prendre une minute… Votre travail reste enregistré localement.";
     }
   }
   if (error instanceof Error) {
-    if (/network|fetch/i.test(error.message)) {
-      return "Le serveur est injoignable. Votre travail reste enregistré localement.";
+    if (/network|fetch|abort/i.test(error.message)) {
+      return "Démarrage du serveur, cela peut prendre une minute… Votre travail reste enregistré localement.";
     }
     return error.message;
   }
@@ -31,6 +31,17 @@ export function isNetworkError(error: unknown): boolean {
     return /fetch|network|abort/i.test(error.message);
   }
   return error instanceof Error && /fetch|network/i.test(error.message);
+}
+
+export function errorDetails(error: unknown): Record<string, unknown> | null {
+  if (!(error instanceof TRPCClientError)) return null;
+  const details = (error.data as { details?: unknown } | undefined)?.details;
+  if (!details || typeof details !== "object") return null;
+  return details as Record<string, unknown>;
+}
+
+export function isEmailNotVerified(error: unknown): boolean {
+  return errorDetails(error)?.code === "EMAIL_NOT_VERIFIED";
 }
 
 export function conflictDetails(error: unknown): ConflictDetails | null {

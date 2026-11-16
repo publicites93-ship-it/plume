@@ -33,10 +33,26 @@ export default function WorkshopScreen() {
     { enabled: Boolean(workshopSlug) },
   );
   const saveAttempt = trpc.learning.saveExerciseAttempt.useMutation();
+  const reviewExercise = trpc.learning.reviewExercise.useMutation();
 
   const [openExerciseId, setOpenExerciseId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, "started" | "completed">>({});
+  const [reviews, setReviews] = useState<
+    Record<
+      string,
+      {
+        id: string;
+        feedback: string | null;
+        strengths: string[];
+        improvements: string[];
+        nextStep: string | null;
+        score: number | null;
+        confidence: number | null;
+      }
+    >
+  >({});
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   async function saveExercise(exerciseId: string, status: "started" | "completed") {
     const content = drafts[exerciseId] ?? "";
@@ -55,6 +71,43 @@ export default function WorkshopScreen() {
       );
     } catch (error) {
       toast(errorMessage(error), "error");
+    }
+  }
+
+  async function correctExercise(exerciseId: string) {
+    const content = (drafts[exerciseId] ?? "").trim();
+    if (countWords(content) < 30) {
+      toast(
+        "Écrivez au moins 30 mots pour une correction utile. Aucun crédit ne sera débité.",
+        "error",
+      );
+      return;
+    }
+    setReviewingId(exerciseId);
+    try {
+      const review = await reviewExercise.mutateAsync({
+        exerciseId,
+        content,
+        attemptId: reviews[exerciseId]?.id,
+      });
+      setReviews((current) => ({
+        ...current,
+        [exerciseId]: {
+          id: review.id,
+          feedback: review.feedback,
+          strengths: review.strengths,
+          improvements: review.improvements,
+          nextStep: review.nextStep,
+          score: review.score,
+          confidence: review.confidence,
+        },
+      }));
+      setSaved((current) => ({ ...current, [exerciseId]: "completed" }));
+      toast("Correction reçue. Un crédit coach a été utilisé.", "success");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    } finally {
+      setReviewingId(null);
     }
   }
 
@@ -254,8 +307,57 @@ export default function WorkshopScreen() {
                       multiline
                       maxLength={20_000}
                       placeholder="Écrivez ici. Personne d'autre que vous ne lit cet essai."
-                      hint={`${countWords(draft)} mots`}
+                      hint={`${countWords(draft)} mots · correction possible à partir de 30 mots`}
                     />
+                    {reviews[exercise.id] ? (
+                      <Card style={styles.reviewCard}>
+                        <View style={styles.reviewTop}>
+                          <Badge tone="success">Correction du coach</Badge>
+                          {reviews[exercise.id]?.score !== null ? (
+                            <Text variant="caption" color={theme.gold}>
+                              {reviews[exercise.id]?.score}/100 · confiance{" "}
+                              {Math.round((reviews[exercise.id]?.confidence ?? 0) * 100)} %
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text variant="caption" color={theme.textSecondary}>
+                          {reviews[exercise.id]?.feedback}
+                        </Text>
+                        {reviews[exercise.id]?.strengths.length ? (
+                          <View style={styles.reviewList}>
+                            {reviews[exercise.id]?.strengths.map((item) => (
+                              <View key={item} style={styles.reviewRow}>
+                                <Ionicons name="checkmark-circle" size={15} color={theme.success} />
+                                <Text variant="caption" color={theme.textSecondary} style={styles.flex}>
+                                  {item}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        {reviews[exercise.id]?.improvements.length ? (
+                          <View style={styles.reviewList}>
+                            {reviews[exercise.id]?.improvements.map((item) => (
+                              <View key={item} style={styles.reviewRow}>
+                                <Ionicons name="arrow-up-circle" size={15} color={theme.gold} />
+                                <Text variant="caption" color={theme.textSecondary} style={styles.flex}>
+                                  {item}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        {reviews[exercise.id]?.nextStep ? (
+                          <InlineNotice tone="info" title="Prochaine étape">
+                            {reviews[exercise.id]?.nextStep}
+                          </InlineNotice>
+                        ) : null}
+                        <Text variant="caption" color={theme.textMuted}>
+                          Modifiez votre essai puis demandez une nouvelle correction : chaque
+                          correction utilise un crédit coach.
+                        </Text>
+                      </Card>
+                    ) : null}
                     <View style={styles.exerciseActions}>
                       <Button
                         label="Enregistrer le brouillon"
@@ -273,6 +375,21 @@ export default function WorkshopScreen() {
                         loading={saveAttempt.isPending}
                         disabled={!draft.trim()}
                         onPress={() => void saveExercise(exercise.id, "completed")}
+                      />
+                      <Button
+                        label={
+                          reviewingId === exercise.id
+                            ? "Correction en cours…"
+                            : reviews[exercise.id]
+                              ? "Faire recorriger"
+                              : "Faire corriger"
+                        }
+                        icon="sparkles-outline"
+                        size="sm"
+                        variant="secondary"
+                        loading={reviewingId === exercise.id}
+                        disabled={reviewingId !== null}
+                        onPress={() => void correctExercise(exercise.id)}
                       />
                     </View>
                   </View>
@@ -386,6 +503,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  reviewCard: {
+    gap: spacing[3],
+    borderColor: "rgba(197,164,106,0.32)",
+  },
+  reviewTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  reviewList: {
+    gap: 6,
+  },
+  reviewRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
   },
   transferCard: {
     gap: spacing[3],

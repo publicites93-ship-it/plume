@@ -1,16 +1,12 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
-import { radii, spacing } from "@plume/shared";
-import { Button, InlineNotice, Text } from "@/components";
-import { trpc, queryClient } from "@/lib/api";
+import Constants from "expo-constants";
+import { Button, Text } from "@/components";
 import { useAuthStore } from "@/lib/auth";
-import { errorMessage } from "@/lib/errors";
-import { toast } from "@/lib/toast";
 import { palette, theme } from "@/theme";
 
 const features = [
@@ -34,26 +30,9 @@ const features = [
 export default function WelcomeScreen() {
   const router = useRouter();
   const session = useAuthStore((state) => state.session);
-  const setSession = useAuthStore((state) => state.setSession);
-  const [demoLoading, setDemoLoading] = useState<"auteur" | "lecteur" | null>(null);
-  const signIn = trpc.auth.signIn.useMutation();
-
-  async function enterDemo(kind: "auteur" | "lecteur") {
-    setDemoLoading(kind);
-    try {
-      const result = await signIn.mutateAsync({
-        email: kind === "auteur" ? "auteur@plume.app" : "lecteur@plume.app",
-        password: "Plume2026",
-      });
-      await setSession(result.tokens);
-      await queryClient.invalidateQueries();
-      router.replace("/");
-    } catch (error) {
-      toast(errorMessage(error), "error");
-    } finally {
-      setDemoLoading(null);
-    }
-  }
+  const legalUrl =
+    (Constants.expoConfig?.extra as { privacyPolicyUrl?: string } | undefined)
+      ?.privacyPolicyUrl ?? "https://plume-api.onrender.com/confidentialite";
 
   return (
     <View style={styles.root}>
@@ -180,31 +159,23 @@ export default function WelcomeScreen() {
             </>
           )}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Essayer avec un compte de démonstration"
-            onPress={() => enterDemo("auteur")}
-            disabled={demoLoading !== null}
-            style={({ pressed }) => [styles.demo, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="flask-outline" size={14} color={theme.textMuted} />
-            <Text variant="caption" color={theme.textMuted}>
-              {demoLoading === "auteur"
-                ? "Ouverture du compte démo…"
-                : "Découvrir avec le compte auteur de démonstration"}
-            </Text>
-          </Pressable>
         </View>
 
         <View style={styles.legal}>
-          <InlineNotice tone="warning" title="Transparence">
-            Version de démonstration. Le coach utilise un moteur pédagogique simulé et les envois
-            d'e-mail ne sont pas actifs. Aucun paiement n'est demandé.
-          </InlineNotice>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Politique de confidentialité et conditions d'utilisation"
+            onPress={() => void Linking.openURL(legalUrl)}
+            style={({ pressed }) => [styles.legalLink, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="shield-checkmark-outline" size={13} color={theme.textMuted} />
+            <Text variant="caption" color={theme.textMuted} align="center">
+              Confidentialité et conditions d'utilisation
+            </Text>
+          </Pressable>
           <Text variant="caption" color={theme.textMuted} align="center" style={styles.legalText}>
-            En continuant, vous acceptez que vos manuscrits privés restent chiffrés en transit et
-            accessibles à vous seul. Les conditions complètes seront publiées avant la mise en
-            production.
+            Vos manuscrits privés restent accessibles à vous seul. Rien n'est publié sans votre
+            geste.
           </Text>
         </View>
       </SafeAreaView>
@@ -295,18 +266,17 @@ const styles = StyleSheet.create({
   actions: {
     gap: 10,
   },
-  demo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    minHeight: 44,
-    marginTop: 2,
-  },
   legal: {
     gap: 8,
     paddingTop: 14,
     paddingBottom: 6,
+  },
+  legalLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
   },
   legalText: {
     fontSize: 10.5,

@@ -13,6 +13,14 @@ const envSchema = z.object({
   AI_PROVIDER: z.enum(["mock", "gemini"]).default("mock"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  EMAIL_PROVIDER: z.enum(["console", "resend", "test"]).default("console"),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("Plume <no-reply@plume.app>"),
+  PUBLIC_APP_URL: z.string().url().default("http://localhost:4000"),
+  REQUIRE_EMAIL_VERIFICATION: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type AppConfig = z.infer<typeof envSchema> & {
@@ -40,6 +48,28 @@ export function getConfig(): AppConfig {
     }
     if (!env.DATABASE_URL) {
       throw new Error("DATABASE_URL est requis en production (PostgreSQL).");
+    }
+    if (env.REQUIRE_EMAIL_VERIFICATION) {
+      if (env.EMAIL_PROVIDER !== "resend") {
+        throw new Error(
+          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_PROVIDER=resend en production.",
+        );
+      }
+      if (!env.RESEND_API_KEY) {
+        throw new Error(
+          "REQUIRE_EMAIL_VERIFICATION=true exige RESEND_API_KEY en production.",
+        );
+      }
+      if (env.EMAIL_FROM === "Plume <no-reply@plume.app>") {
+        throw new Error(
+          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_FROM avec un domaine expéditeur vérifié.",
+        );
+      }
+      if (!env.PUBLIC_APP_URL.startsWith("https://")) {
+        throw new Error(
+          "REQUIRE_EMAIL_VERIFICATION=true exige PUBLIC_APP_URL en HTTPS.",
+        );
+      }
     }
   }
   cached = {

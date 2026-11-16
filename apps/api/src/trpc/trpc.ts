@@ -8,6 +8,8 @@ export interface Context {
   userId?: string;
   role?: "user" | "admin";
   ip?: string;
+  /** Vrai si un en-tête Authorization a été fourni, même invalide/expiré. */
+  hadToken?: boolean;
 }
 
 export async function createContext(opts: {
@@ -18,16 +20,18 @@ export async function createContext(opts: {
   let userId: string | undefined;
   let role: "user" | "admin" | undefined;
   const header = opts.authorization;
-  if (header?.startsWith("Bearer ")) {
+  const hadToken = Boolean(header?.startsWith("Bearer "));
+  if (hadToken && header) {
     try {
       const payload = await verifyAccessToken(header.slice(7));
       userId = payload.sub;
       role = payload.role;
     } catch {
-      // Jeton absent/expiré : les procédures publiques restent accessibles.
+      // Jeton présent mais invalide/expiré : les procédures publiques restent
+      // accessibles, les procédures protégées renvoient un message distinct.
     }
   }
-  return { db: opts.db, userId, role, ip: opts.ip };
+  return { db: opts.db, userId, role, ip: opts.ip, hadToken };
 }
 
 const t = initTRPC.context<Context>().create({
@@ -49,7 +53,9 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: "Votre session a expiré. Reconnectez-vous pour continuer.",
+      message: ctx.hadToken
+        ? "Votre session a expiré. Reconnectez-vous pour continuer."
+        : "Connectez-vous pour continuer.",
     });
   }
   return next({ ctx: { ...ctx, userId: ctx.userId, role: ctx.role ?? "user" } });

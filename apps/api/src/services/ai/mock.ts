@@ -1,9 +1,15 @@
-import { SKILL_BY_ID, WORKSHOP_BY_SLUG, countWords, type SkillId } from "@plume/shared";
+import { SKILLS, SKILL_BY_ID, WORKSHOP_BY_SLUG, countWords, type SkillId } from "@plume/shared";
 import type {
   AIProvider,
   AnalysisDraft,
   AnalysisFindingDraft,
   AnalysisProviderInput,
+  CoachChatDraft,
+  CoachChatProviderInput,
+  ExerciseReviewDraft,
+  ExerciseReviewProviderInput,
+  StoryAnalysisDraft,
+  StoryAnalysisProviderInput,
 } from "./provider";
 
 /**
@@ -147,6 +153,104 @@ export class MockPedagogicalProvider implements AIProvider {
       model: this.model,
       inputTokens: Math.ceil(text.length / 4),
       outputTokens: 850,
+      isSimulation: true,
+    };
+  }
+
+  async analyzeStory(input: StoryAnalysisProviderInput): Promise<StoryAnalysisDraft> {
+    const analyses = await Promise.all(
+      SKILLS.map(async (skill) => {
+        const draft = await this.analyzeChapter({
+          skill: skill.id,
+          manuscript: input.manuscript,
+          chapterTitle: input.chapterTitle,
+          storyTitle: input.storyTitle,
+          scope: "chapter",
+        });
+        return {
+          skill: skill.id,
+          summary: draft.summary,
+          score: draft.score,
+          confidence: draft.confidence,
+          findings: draft.findings,
+        };
+      }),
+    );
+    return {
+      analyses,
+      provider: this.name,
+      model: this.model,
+      inputTokens: Math.ceil(input.manuscript.length / 4) * SKILLS.length,
+      outputTokens: 850 * SKILLS.length,
+      isSimulation: true,
+    };
+  }
+
+  async coachReply(input: CoachChatProviderInput): Promise<CoachChatDraft> {
+    if (/(ré[ée]cris|ré[ée]crire|génère|invente|écris (moi|le|la|un|une)|remplace)/i.test(input.message)) {
+      return {
+        reply:
+          "Je ne réécris pas vos passages : ce serait vous priver du travail qui fait progresser. En revanche, je peux vous aider à voir ce qui produit l'effet recherché, puis vous proposer une contrainte d'écriture pour le retravailler vous-même. Quel effet voulez-vous que le lecteur ressente à cet endroit ?",
+        citations: [],
+        provider: this.name,
+        model: this.model,
+        inputTokens: 600,
+        outputTokens: 120,
+        isSimulation: true,
+      };
+    }
+    const evidence = input.evidence[0];
+    const quote = evidence?.quote ?? null;
+    const reply = [
+      `Simulation pédagogique locale — aucun modèle IA externe n'a été appelé. Je m'appuie sur votre dernier diagnostic${input.chapterTitle ? ` du chapitre « ${input.chapterTitle} »` : ""}.`,
+      evidence
+        ? `Le constat le plus utile me semble être : ${evidence.observation}`
+        : "Je n'ai pas encore de constat vérifié sur cette histoire. Lancez d'abord un diagnostic depuis l'onglet Coach.",
+      quote
+        ? `Le passage qui appuie cette observation est : « ${quote} ».`
+        : "Je ne retrouve pas de citation vérifiable : je préfère ne pas en inventer.",
+      evidence?.recommendation
+        ? `Méthode proposée : ${evidence.recommendation}`
+        : "Méthode proposée : relisez la scène en notant, pour chaque paragraphe, ce qui change pour le personnage.",
+      "Je ne toucherai pas à votre texte. Quelle phrase de votre scène porte le plus l'intention que vous voulez transmettre ?",
+    ].join("\n\n");
+    return {
+      reply,
+      citations: quote ? [quote] : [],
+      provider: this.name,
+      model: this.model,
+      inputTokens: 800,
+      outputTokens: Math.ceil(reply.length / 4),
+      isSimulation: true,
+    };
+  }
+
+  async reviewExercise(input: ExerciseReviewProviderInput): Promise<ExerciseReviewDraft> {
+    const words = countWords(input.content);
+    const feedback =
+      words < 30
+        ? `Simulation pédagogique locale. Votre essai compte ${words} mots : il est trop court pour une correction fiable. Développez une scène concrète en suivant la consigne « ${input.instructions} », puis demandez une nouvelle correction.`
+        : `Simulation pédagogique locale. Votre essai de ${words} mots répond en partie à l'exercice « ${input.exerciseTitle} ». La correction ci-dessous s'appuie uniquement sur ce que vous avez écrit ; aucun texte n'a été réécrit.`;
+    return {
+      feedback,
+      strengths: [
+        "Vous avez produit un texte personnel et identifiable.",
+        "L'essai peut être confronté aux critères de l'atelier.",
+      ],
+      improvements: [
+        words < 30
+          ? "Développez davantage pour que les critères puissent être observés."
+          : "Vérifiez chaque critère de l'atelier et notez celui qui reste le moins visible.",
+        "Relisez à voix haute pour repérer une phrase dont la fonction narrative reste floue.",
+      ],
+      nextStep:
+        "Choisissez un seul critère, modifiez un seul élément, puis demandez une nouvelle correction pour comparer.",
+      score: words < 30 ? null : Math.min(80, 42 + Math.min(30, Math.floor(words / 20))),
+      confidence: words < 30 ? 0.2 : 0.35,
+      provider: this.name,
+      model: this.model,
+      inputTokens: Math.ceil(input.content.length / 4) + 400,
+      outputTokens: 260,
       isSimulation: true,
     };
   }

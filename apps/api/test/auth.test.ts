@@ -1,6 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TRPCError } from "@trpc/server";
-import { publicCaller, registerUser, setupDatabase, teardown, type TestContext } from "./helpers";
+import {
+  publicCaller,
+  registerUser,
+  setupDatabase,
+  teardown,
+  TEST_PASSWORD,
+  type TestContext,
+} from "./helpers";
 
 let context: TestContext;
 
@@ -28,7 +35,7 @@ describe("authentification", () => {
     await expect(
       caller.auth.signUp({
         email,
-        password: "PlumeTest1",
+        password: TEST_PASSWORD,
         pseudonym: `Second ${Date.now()}`,
         acceptedTerms: true,
       }),
@@ -40,10 +47,10 @@ describe("authentification", () => {
     await registerUser(context.db, { email, pseudonym: `Wrong ${Date.now()}` });
     const caller = publicCaller(context.db);
     await expect(
-      caller.auth.signIn({ email, password: "MauvaisPass1" }),
+      caller.auth.signIn({ email, password: "MauvaisPass2026" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     await expect(
-      caller.auth.signIn({ email: "inconnu@plume.test", password: "MauvaisPass1" }),
+      caller.auth.signIn({ email: "inconnu@plume.test", password: "MauvaisPass2026" }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
@@ -119,7 +126,7 @@ describe("export et suppression", () => {
   it("supprime le compte avec confirmation et mot de passe", async () => {
     const user = await registerUser(context.db);
     await expect(
-      user.caller.auth.deleteAccount({ password: "PlumeTest1", confirmation: "SUPPRIMER" }),
+      user.caller.auth.deleteAccount({ password: TEST_PASSWORD, confirmation: "SUPPRIMER" }),
     ).resolves.toMatchObject({ ok: true });
     await expect(user.caller.auth.me()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
@@ -133,7 +140,7 @@ describe("limitation de débit", () => {
       try {
         await caller.auth.signIn({
           email: `rate-${i}@plume.test`,
-          password: "PlumeTest1",
+          password: TEST_PASSWORD,
         });
       } catch (error) {
         lastError = error as TRPCError;

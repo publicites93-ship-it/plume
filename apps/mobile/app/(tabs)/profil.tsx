@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { PLANS, spacing } from "@plume/shared";
 import {
   Avatar,
@@ -36,6 +37,7 @@ export default function ProfileScreen() {
   const bookmarks = trpc.reading.bookmarks.useQuery();
   const lists = trpc.reading.lists.useQuery();
   const clearSession = useAuthStore((state) => state.clearSession);
+  const appVersion = Constants.expoConfig?.version ?? "0.2.0";
 
   const [editOpen, setEditOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -216,7 +218,7 @@ export default function ProfileScreen() {
             icon="sparkles-outline"
             title="Formule"
             rightText={PLANS[plan.plan].priceLabel}
-            subtitle={`${plan.activeStories}/${plan.activeStoriesLimit} histoires actives · ${formatNumber(plan.tokensRemaining)} jetons coach restants`}
+            subtitle={`${plan.activeStories}/${plan.activeStoriesLimit} histoires actives · ${formatNumber(plan.creditsRemaining)} crédits coach restants`}
             onPress={() => router.push("/ecrire")}
           />
         </View>
@@ -257,7 +259,7 @@ export default function ProfileScreen() {
       </Card>
 
       <Text variant="caption" color={theme.textMuted} align="center" style={styles.version}>
-        Plume 0.1.0 · version de démonstration · coach simulé
+        Plume {appVersion}
       </Text>
 
       <Sheet

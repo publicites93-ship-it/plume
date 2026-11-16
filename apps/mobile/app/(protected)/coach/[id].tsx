@@ -39,6 +39,7 @@ export default function CoachScreen() {
   const utils = trpc.useUtils();
 
   const dashboard = trpc.stories.dashboard.useQuery({ storyId }, { enabled: Boolean(storyId) });
+  const me = trpc.auth.me.useQuery(undefined);
   const analyses = trpc.ai.list.useQuery(
     { storyId, limit: 20 },
     { enabled: Boolean(storyId) },
@@ -61,6 +62,7 @@ export default function CoachScreen() {
   );
 
   const analyze = trpc.ai.analyzeChapter.useMutation();
+  const analyzeAll = trpc.ai.analyzeStory.useMutation();
   const startSession = trpc.ai.startSession.useMutation();
   const send = trpc.ai.send.useMutation();
 
@@ -98,6 +100,28 @@ export default function CoachScreen() {
       ]);
       toast("Diagnostic prêt. Aucun texte n'a été modifié.", "success");
       router.push({ pathname: "/analyse/[id]", params: { id: result.id } });
+    } catch (error) {
+      setFormError(errorMessage(error));
+    }
+  }
+
+  async function runGlobalAnalysis() {
+    setFormError(null);
+    if (!selectedChapterId) {
+      setFormError("Créez un chapitre avant de lancer une analyse globale.");
+      return;
+    }
+    try {
+      const result = await analyzeAll.mutateAsync({ storyId, chapterId: selectedChapterId });
+      await Promise.all([
+        utils.ai.list.invalidate({ storyId }),
+        utils.ai.progress.invalidate(),
+      ]);
+      toast("Les sept compétences ont été analysées. Aucun texte n'a été modifié.", "success");
+      const first = result.analyses[0];
+      if (first) {
+        router.push({ pathname: "/analyse/[id]", params: { id: first.id } });
+      }
     } catch (error) {
       setFormError(errorMessage(error));
     }
@@ -180,7 +204,7 @@ export default function CoachScreen() {
             </Text>
           </View>
         </View>
-        <SimulationNotice compact />
+        {me.data?.coach.isSimulation ? <SimulationNotice compact /> : null}
       </Card>
 
       <SectionHeader title="Lancer un diagnostic" eyebrow="Atelier" />
@@ -272,11 +296,26 @@ export default function CoachScreen() {
             label={analyze.isPending ? "Lecture en cours…" : "Demander un diagnostic"}
             icon="sparkles-outline"
             loading={analyze.isPending}
+            disabled={analyzeAll.isPending}
             onPress={runAnalysis}
+            fullWidth
+          />
+          <Button
+            label={
+              analyzeAll.isPending
+                ? "Analyse des sept compétences…"
+                : "Analyser les sept compétences"
+            }
+            icon="layers-outline"
+            variant="secondary"
+            loading={analyzeAll.isPending}
+            disabled={analyze.isPending}
+            onPress={runGlobalAnalysis}
             fullWidth
           />
           <Text variant="caption" color={theme.textMuted}>
             L'analyse ne modifie ni le chapitre ni ses versions. Elle crée un instantané de lecture.
+            L'analyse globale des sept compétences utilise un crédit d'analyse étendue.
           </Text>
         </Card>
       )}

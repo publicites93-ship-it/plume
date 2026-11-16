@@ -222,14 +222,14 @@ export default function HomeScreen() {
             Enveloppe coach
           </Text>
           <Text variant="title" color={theme.goldBright}>
-            {formatNumber(plan.tokensRemaining)}
+            {formatNumber(plan.creditsRemaining)}
           </Text>
           <ProgressBar
-            value={plan.tokensLimit ? plan.tokensRemaining / plan.tokensLimit : 0}
+            value={plan.creditsLimit ? plan.creditsRemaining / plan.creditsLimit : 0}
             height={4}
           />
           <Text variant="caption" color={theme.textMuted}>
-            jetons restants ce mois
+            crédits restants ce mois
           </Text>
         </Card>
       </View>
@@ -394,7 +394,7 @@ export default function HomeScreen() {
             ))}
           </Card>
           <View style={styles.noticeWrap}>
-            <SimulationNotice compact />
+            {me.data?.coach.isSimulation ? <SimulationNotice compact /> : null}
           </View>
         </>
       ) : null}

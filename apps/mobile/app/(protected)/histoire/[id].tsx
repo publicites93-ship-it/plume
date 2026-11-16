@@ -52,6 +52,7 @@ export default function StoryDashboardScreen() {
   const utils = trpc.useUtils();
 
   const dashboard = trpc.stories.dashboard.useQuery({ storyId }, { enabled: Boolean(storyId) });
+  const me = trpc.auth.me.useQuery(undefined);
 
   const [editOpen, setEditOpen] = useState(false);
   const [chapterOpen, setChapterOpen] = useState(false);
@@ -490,15 +491,14 @@ export default function StoryDashboardScreen() {
       </Card>
 
       <View style={styles.noticeWrap}>
-        <SimulationNotice compact />
+        {me.data?.coach.isSimulation ? <SimulationNotice compact /> : null}
       </View>
 
       <SectionHeader title="Zone sensible" eyebrow="Données" />
       <Card>
         <Text variant="caption" color={theme.textMuted}>
-          La suppression retire le manuscrit de votre atelier et de toute page publique. Elle est
-          réversible côté base pendant la phase de développement, mais aucun écran de restauration
-          n'est encore exposé.
+          La suppression retire le manuscrit de votre atelier et de toute page publique. Elle
+          n'est pas réversible depuis l'application.
         </Text>
         <Button
           label="Supprimer ce manuscrit"

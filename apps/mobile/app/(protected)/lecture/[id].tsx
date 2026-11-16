@@ -14,6 +14,7 @@ import { fontScaleOptions, radii, spacing, typography } from "@plume/shared";
 import {
   Button,
   Card,
+  ChapterEndSocial,
   ErrorState,
   IconButton,
   InlineNotice,
@@ -213,6 +214,12 @@ export default function ReaderScreen() {
           <Ionicons name="book-outline" size={18} color={paletteForReading.accent} />
           <View style={[styles.line, { backgroundColor: paletteForReading.accent }]} />
         </View>
+
+        <ChapterEndSocial
+          storyId={chapter.story.id}
+          chapterId={chapter.chapter.id}
+          colors={paletteForReading}
+        />
 
         <View style={styles.navigation}>
           <Button

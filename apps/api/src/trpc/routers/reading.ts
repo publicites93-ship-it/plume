@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { readingProgressSchema } from "@plume/shared";
+import { COMMENT_MAX_LENGTH, STORY_REACTION_IDS, readingProgressSchema } from "@plume/shared";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 import {
   addBookmark,
@@ -17,6 +17,15 @@ import {
   toggleAuthorFollow,
   toggleStoryFollow,
 } from "../../services/stories";
+import {
+  addChapterComment,
+  chapterSocial,
+  deleteComment,
+  listChapterComments,
+  storyStats,
+  toggleChapterLike,
+  toggleStoryReaction,
+} from "../../services/social";
 
 export const readingRouter = router({
   catalog: publicProcedure
@@ -85,4 +94,38 @@ export const readingRouter = router({
   author: publicProcedure
     .input(z.object({ authorId: z.string().uuid() }))
     .query(async ({ ctx, input }) => authorProfile(ctx.db, input.authorId, ctx.userId)),
+  stats: publicProcedure
+    .input(z.object({ storyId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => storyStats(ctx.db, input.storyId, ctx.userId)),
+
+  toggleReaction: protectedProcedure
+    .input(z.object({ storyId: z.string().uuid(), kind: z.enum(STORY_REACTION_IDS) }))
+    .mutation(async ({ ctx, input }) =>
+      toggleStoryReaction(ctx.db, ctx.userId, input.storyId, input.kind),
+    ),
+
+  chapterSocial: publicProcedure
+    .input(z.object({ chapterId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => chapterSocial(ctx.db, input.chapterId, ctx.userId)),
+
+  toggleChapterLike: protectedProcedure
+    .input(z.object({ chapterId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => toggleChapterLike(ctx.db, ctx.userId, input.chapterId)),
+
+  comments: publicProcedure
+    .input(z.object({ chapterId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => listChapterComments(ctx.db, input.chapterId, ctx.userId)),
+
+  addComment: protectedProcedure
+    .input(
+      z.object({
+        chapterId: z.string().uuid(),
+        body: z.string().trim().min(1).max(COMMENT_MAX_LENGTH),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => addChapterComment(ctx.db, ctx.userId, input)),
+
+  deleteComment: protectedProcedure
+    .input(z.object({ commentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => deleteComment(ctx.db, ctx.userId, input.commentId)),
 });

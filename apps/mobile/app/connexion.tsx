@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { spacing } from "@plume/shared";
@@ -9,11 +9,10 @@ import {
   Input,
   Text,
 } from "@/components";
-import { queryClient, trpc } from "@/lib/api";
+import { queryClient, SERVER_WAKE_MESSAGE, trpc } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
-import { errorMessage } from "@/lib/errors";
-import { toast } from "@/lib/toast";
-import { palette, theme } from "@/theme";
+import { errorMessage, isEmailNotVerified } from "@/lib/errors";
+import { theme } from "@/theme";
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -22,11 +21,21 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [demoLoading, setDemoLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [slowServer, setSlowServer] = useState(false);
+
+  useEffect(() => {
+    if (!signIn.isPending) {
+      setSlowServer(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowServer(true), 5_000);
+    return () => clearTimeout(timer);
+  }, [signIn.isPending]);
 
   async function submit() {
     setError(null);
+    setNeedsVerification(false);
     if (!email.trim().includes("@")) {
       setError("Indiquez une adresse e-mail valide.");
       return;
@@ -42,24 +51,7 @@ export default function SignInScreen() {
       router.replace("/");
     } catch (cause) {
       setError(errorMessage(cause));
-    }
-  }
-
-  async function enterDemo() {
-    setError(null);
-    setDemoLoading(true);
-    try {
-      const result = await signIn.mutateAsync({
-        email: "auteur@plume.app",
-        password: "Plume2026",
-      });
-      await setSession(result.tokens);
-      await queryClient.invalidateQueries();
-      router.replace("/");
-    } catch (cause) {
-      toast(errorMessage(cause), "error");
-    } finally {
-      setDemoLoading(false);
+      setNeedsVerification(isEmailNotVerified(cause));
     }
   }
 
@@ -78,25 +70,24 @@ export default function SignInScreen() {
             variant="ghost"
             onPress={() => router.push("/inscription")}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Essayer le compte de démonstration"
-            onPress={enterDemo}
-            disabled={demoLoading}
-            style={styles.demo}
-          >
-            <Text variant="caption" color={theme.textMuted}>
-              {demoLoading ? "Ouverture…" : "Essayer avec le compte démo (auteur@plume.app)"}
-            </Text>
-          </Pressable>
         </View>
       }
     >
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
-      {notice ? (
-        <InlineNotice tone="warning" title="Réinitialisation indisponible">
-          {notice}
-        </InlineNotice>
+      {needsVerification ? (
+        <Button
+          label="Renvoyer l'e-mail de vérification"
+          variant="secondary"
+          onPress={() =>
+            router.push({
+              pathname: "/verification-envoyee",
+              params: { email: email.trim(), sent: "0" },
+            })
+          }
+        />
+      ) : null}
+      {slowServer ? (
+        <InlineNotice tone="warning">{SERVER_WAKE_MESSAGE}</InlineNotice>
       ) : null}
 
       <Input
@@ -128,11 +119,7 @@ export default function SignInScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Mot de passe oublié"
-        onPress={() =>
-          setNotice(
-            "L'envoi d'e-mails n'est pas configuré dans cette version. La réinitialisation en libre-service sera activée avec un fournisseur d'e-mail vérifié. Contactez l'administrateur de l'instance pour débloquer votre compte.",
-          )
-        }
+        onPress={() => router.push("/mot-de-passe-oublie")}
         style={styles.forgot}
       >
         <Text variant="caption" color={theme.gold}>
@@ -151,7 +138,7 @@ export default function SignInScreen() {
 
       <InlineNotice tone="info">
         Vos manuscrits privés ne sont jamais visibles dans le catalogue. Le coach ne réécrit pas
-        vos textes et signale toute analyse simulée.
+        vos textes et vérifie les citations qu'il présente.
       </InlineNotice>
     </AuthShell>
   );
@@ -161,17 +148,9 @@ const styles = StyleSheet.create({
   footer: {
     gap: spacing[2],
   },
-  demo: {
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   forgot: {
     alignSelf: "flex-end",
     minHeight: 44,
     justifyContent: "center",
-  },
-  tag: {
-    color: palette.gold,
   },
 });

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { citationExists } from "@plume/shared";
+import { and, eq } from "drizzle-orm";
+import { citationExists, WORKSHOPS } from "@plume/shared";
 import { aiUsageRecords } from "../src/db/schema";
 import {
   SAMPLE_TEXT,
@@ -109,6 +110,132 @@ describe("coach littéraire (simulation locale)", () => {
     for (const citation of reply.citations) {
       expect(citationExists(citation.quote, SAMPLE_TEXT)).toBe(true);
     }
+  });
+
+  it("ne débite rien quand le coach refuse une réécriture", async () => {
+    const before = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "coach_chat"),
+        ),
+      );
+    const session = (await author.caller.ai.startSession({ storyId }))!;
+    await author.caller.ai.send({
+      sessionId: session.id,
+      content: "Réécris ce passage à ma place.",
+    });
+    const after = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "coach_chat"),
+        ),
+      );
+    expect(after.length).toBe(before.length);
+  });
+
+  it("produit une analyse globale des sept compétences en une action", async () => {
+    const before = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "multi_chapter_analysis"),
+        ),
+      );
+    const result = await author.caller.ai.analyzeStory({ storyId, chapterId });
+    expect(result.analyses).toHaveLength(7);
+    expect(new Set(result.analyses.map((analysis) => analysis.skill)).size).toBe(7);
+    for (const analysis of result.analyses) {
+      const detail = await author.caller.ai.get({ analysisId: analysis.id });
+      for (const finding of detail.findings.filter((item) => item.quote)) {
+        expect(citationExists(finding.quote!, SAMPLE_TEXT)).toBe(true);
+      }
+    }
+    const after = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "multi_chapter_analysis"),
+        ),
+      );
+    expect(after.length).toBe(before.length + 1);
+  });
+
+  it("corrige un exercice et permet de le faire recorriger", async () => {
+    const exercise = WORKSHOPS[0]!.exercises[0]!;
+    const before = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "exercise_generation"),
+        ),
+      );
+    const first = await author.caller.learning.reviewExercise({
+      exerciseId: exercise.id,
+      content: SAMPLE_TEXT,
+    });
+    expect(first.status).toBe("reviewed");
+    expect(first.feedback).toBeTruthy();
+    expect(first.strengths.length).toBeGreaterThan(0);
+
+    const second = await author.caller.learning.reviewExercise({
+      exerciseId: exercise.id,
+      attemptId: first.id,
+      content: `${SAMPLE_TEXT}\n\nJ'ai ajouté un geste concret et une conséquence visible.`,
+    });
+    expect(second.id).toBe(first.id);
+    expect(second.feedback).toBeTruthy();
+
+    const after = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "exercise_generation"),
+        ),
+      );
+    expect(after.length).toBe(before.length + 2);
+  });
+
+  it("refuse la correction d'un essai trop court sans débiter de crédit", async () => {
+    const exercise = WORKSHOPS[0]!.exercises[0]!;
+    const before = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "exercise_generation"),
+        ),
+      );
+    await expect(
+      author.caller.learning.reviewExercise({
+        exerciseId: exercise.id,
+        content: "Trop court.",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const after = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(
+        and(
+          eq(aiUsageRecords.userId, author.userId),
+          eq(aiUsageRecords.taskKind, "exercise_generation"),
+        ),
+      );
+    expect(after.length).toBe(before.length);
   });
 
   it("bloque l'analyse quand le quota mensuel est épuisé", async () => {

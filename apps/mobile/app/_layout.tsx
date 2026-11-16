@@ -21,7 +21,7 @@ import {
   Inter_500Medium,
   Inter_600SemiBold,
 } from "@expo-google-fonts/inter";
-import { createTrpcClient, queryClient, trpc } from "@/lib/api";
+import { createTrpcClient, queryClient, trpc, wakeServer } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import { useUiStore } from "@/lib/ui";
 import { ToastHost } from "@/components";
@@ -50,6 +50,9 @@ export default function RootLayout() {
   useEffect(() => {
     void hydrateAuth();
     void hydrateUi();
+    // Réveille l'API Render sans bloquer l'affichage. Les requêtes suivantes
+    // réessaient d'elles-mêmes si le service met du temps à démarrer.
+    void wakeServer();
   }, [hydrateAuth, hydrateUi]);
 
   const ready = (fontsLoaded || Boolean(fontError)) && authHydrated && uiHydrated;
@@ -80,6 +83,13 @@ export default function RootLayout() {
               <Stack.Screen name="bienvenue" options={{ animation: "fade" }} />
               <Stack.Screen name="connexion" options={{ animation: "slide_from_bottom" }} />
               <Stack.Screen name="inscription" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="verification-envoyee" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="verifier-email" options={{ animation: "fade" }} />
+              <Stack.Screen name="mot-de-passe-oublie" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen
+                name="reinitialiser-mot-de-passe"
+                options={{ animation: "slide_from_right" }}
+              />
               <Stack.Screen name="onboarding" options={{ animation: "fade" }} />
             </Stack>
             <ToastHost />

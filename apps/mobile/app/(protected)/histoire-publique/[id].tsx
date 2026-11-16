@@ -19,6 +19,7 @@ import {
   SectionHeader,
   Sheet,
   Stat,
+  StoryCounters,
   Text,
   type CoverMotif,
 } from "@/components";
@@ -59,6 +60,7 @@ export default function PublicStoryScreen() {
       await Promise.all([
         utils.reading.story.invalidate({ storyId }),
         utils.reading.library.invalidate(),
+        utils.reading.stats.invalidate({ storyId }),
       ]);
       toast(data?.following ? "Histoire retirée de votre bibliothèque." : "Histoire ajoutée à votre bibliothèque.", "success");
     } catch (error) {
@@ -163,6 +165,10 @@ export default function PublicStoryScreen() {
               <Stat value={data.chapters.length} label="chapitres" compact />
               <Stat value={relativeTime(story.updatedAt)} label="mise à jour" compact />
             </View>
+            <StoryCounters
+              storyId={story.id}
+              colors={{ text: theme.textPrimary, textMuted: theme.textMuted, accent: theme.gold }}
+            />
           </View>
         </View>
         <Divider />

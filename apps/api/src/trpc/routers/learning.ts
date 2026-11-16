@@ -2,7 +2,11 @@ import { z } from "zod";
 import { SKILLS, WORKSHOPS, WORKSHOP_BY_SLUG } from "@plume/shared";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
-import { progressDashboard } from "../../services/ai/analysis";
+import {
+  listExerciseAttempts,
+  progressDashboard,
+  reviewExerciseAttempt,
+} from "../../services/ai/analysis";
 
 export const learningRouter = router({
   skills: publicProcedure.query(() => ({
@@ -51,4 +55,24 @@ export const learningRouter = router({
         .returning();
       return row;
     }),
+
+  reviewExercise: protectedProcedure
+    .input(
+      z.object({
+        exerciseId: z.string().min(1).max(120),
+        content: z.string().trim().min(1).max(20_000),
+        storyId: z.string().uuid().optional(),
+        attemptId: z.string().uuid().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => reviewExerciseAttempt(ctx.db, ctx.userId, input)),
+
+  exerciseAttempts: protectedProcedure
+    .input(
+      z.object({
+        exerciseId: z.string().min(1).max(120).optional(),
+        limit: z.number().int().min(1).max(30).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => listExerciseAttempts(ctx.db, ctx.userId, input)),
 });

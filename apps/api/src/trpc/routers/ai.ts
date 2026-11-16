@@ -4,6 +4,7 @@ import { protectedProcedure, router } from "../trpc";
 import {
   analysesForChapter,
   analyzeChapter,
+  analyzeStory,
   getAnalysis,
   getCoachingSession,
   listAnalyses,
@@ -25,6 +26,15 @@ export const aiRouter = router({
         selection: input.selection,
       }),
     ),
+
+  analyzeStory: protectedProcedure
+    .input(
+      z.object({
+        storyId: z.string().uuid(),
+        chapterId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => analyzeStory(ctx.db, ctx.userId, input)),
 
   list: protectedProcedure
     .input(

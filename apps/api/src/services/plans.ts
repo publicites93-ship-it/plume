@@ -8,9 +8,13 @@ export interface PlanSummary {
   plan: PlanId;
   planName: string;
   planExpiresAt: string | null;
-  tokensUsed: number;
-  tokensLimit: number;
-  tokensRemaining: number;
+  /**
+   * Unité de quota présentée à l'auteur. Le coût réel en tokens du fournisseur
+   * reste suivi séparément dans ai_usage_records.
+   */
+  creditsUsed: number;
+  creditsLimit: number;
+  creditsRemaining: number;
   activeStories: number;
   activeStoriesLimit: number;
   chaptersThisWeek: number;
@@ -98,9 +102,9 @@ export async function getPlanSummary(db: Database, userId: string): Promise<Plan
     plan: planId,
     planName: plan.name,
     planExpiresAt: user.planExpiresAt?.toISOString() ?? null,
-    tokensUsed: used,
-    tokensLimit: plan.aiTokensPerMonth,
-    tokensRemaining: Math.max(0, plan.aiTokensPerMonth - used),
+    creditsUsed: used,
+    creditsLimit: plan.aiTokensPerMonth,
+    creditsRemaining: Math.max(0, plan.aiTokensPerMonth - used),
     activeStories,
     activeStoriesLimit: plan.activeStories,
     chaptersThisWeek,
@@ -180,9 +184,9 @@ export async function assertAiQuota(
   if (used + estimated > plan.aiTokensPerMonth) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: `Votre enveloppe IA de ${plan.aiTokensPerMonth.toLocaleString(
+      message: `Votre enveloppe coach de ${plan.aiTokensPerMonth.toLocaleString(
         "fr-FR",
-      )} tokens est presque épuisée (${used.toLocaleString("fr-FR")} utilisés). Elle se renouvellera le 1er du mois.`,
+      )} crédits est presque épuisée (${used.toLocaleString("fr-FR")} utilisés). Elle se renouvellera le 1er du mois.`,
       cause: {
         details: {
           code: "QUOTA_EXCEEDED",

@@ -11,11 +11,21 @@ import {
 } from "@plume/shared";
 import {
   authenticateUser,
+  issueSession,
   registerUser,
   revokeAllSessions,
   revokeRefreshToken,
   rotateRefreshToken,
 } from "../../auth/service";
+import {
+  createEmailVerificationToken,
+  createPasswordResetToken,
+  emailDeliveryConfigured,
+  markEmailVerified,
+  resetPasswordWithToken,
+} from "../../auth/emailTokens";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../../services/email";
+import { getConfig } from "../../config";
 import { hashPassword, verifyPassword } from "../../auth/password";
 import {
   aiAnalyses,
@@ -42,6 +52,8 @@ import {
 
 const authLimiter = new FixedWindowLimiter(20, 15 * 60 * 1000);
 const refreshLimiter = new FixedWindowLimiter(60, 15 * 60 * 1000);
+const resendLimiter = new FixedWindowLimiter(1, 60 * 1000);
+const resetLimiter = new FixedWindowLimiter(5, 15 * 60 * 1000);
 
 function rateLimit(limiter: FixedWindowLimiter, key: string, message: string) {
   if (!limiter.check(key)) {
@@ -61,7 +73,12 @@ async function loadMe(db: Parameters<typeof getPlanSummary>[0], userId: string) 
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Compte introuvable." });
   }
   const planSummary = await getPlanSummary(db, userId);
+  const config = getConfig();
   return {
+    coach: {
+      provider: config.AI_PROVIDER,
+      isSimulation: config.AI_PROVIDER === "mock",
+    },
     user: {
       id: row.user.id,
       email: row.user.email,
@@ -98,8 +115,13 @@ async function loadMe(db: Parameters<typeof getPlanSummary>[0], userId: string) 
 export const authRouter = router({
   signUp: publicProcedure.input(signUpSchema).mutation(async ({ ctx, input }) => {
     rateLimit(authLimiter, `signup:${ctx.ip ?? "unknown"}`, "Trop de tentatives. Réessayez dans quelques minutes.");
-    const { userId, tokens } = await registerUser(ctx.db, input);
-    return { userId, tokens };
+    const result = await registerUser(ctx.db, input);
+    return {
+      userId: result.userId,
+      tokens: result.tokens,
+      verificationRequired: result.verificationRequired,
+      emailSent: result.emailSent,
+    };
   }),
 
   signIn: publicProcedure.input(signInSchema).mutation(async ({ ctx, input }) => {
@@ -329,22 +351,98 @@ export const authRouter = router({
     };
   }),
 
-  resendVerification: protectedProcedure.mutation(async () => {
-    throw new TRPCError({
-      code: "NOT_IMPLEMENTED",
-      message:
-        "La vérification d'e-mail nécessite un fournisseur d'envoi (non configuré dans cette version).",
-    });
-  }),
+  resendVerification: publicProcedure
+    .input(z.object({ email: emailSchema }))
+    .mutation(async ({ ctx, input }) => {
+      rateLimit(
+        resendLimiter,
+        `resend:${input.email}`,
+        "Un e-mail vient déjà d'être envoyé. Patientez une minute avant de réessayer.",
+      );
+      if (!emailDeliveryConfigured()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "L'envoi d'e-mails n'est pas encore configuré sur cette instance. Contactez l'administrateur.",
+        });
+      }
+      const [user] = await ctx.db
+        .select({ id: users.id, emailVerifiedAt: users.emailVerifiedAt })
+        .from(users)
+        .where(and(eq(users.email, input.email), isNull(users.deletedAt)))
+        .limit(1);
+      // Réponse identique si le compte n'existe pas ou est déjà vérifié :
+      // cela évite de révéler l'existence d'une adresse.
+      if (!user || user.emailVerifiedAt) return { ok: true };
+      const token = await createEmailVerificationToken(ctx.db, user.id);
+      try {
+        await sendVerificationEmail(input.email, token);
+      } catch {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            "L'e-mail n'a pas pu être envoyé. Réessayez dans quelques minutes ou contactez l'administrateur.",
+        });
+      }
+      return { ok: true };
+    }),
+
+  verifyEmail: publicProcedure
+    .input(z.object({ token: z.string().min(20).max(500) }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = await markEmailVerified(ctx.db, input.token);
+      const [user] = await ctx.db
+        .select({ id: users.id, role: users.role, deletedAt: users.deletedAt })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (!user || user.deletedAt) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Compte indisponible." });
+      }
+      const tokens = await issueSession(ctx.db, user.id, user.role);
+      return { ok: true, tokens };
+    }),
 
   requestPasswordReset: publicProcedure
     .input(z.object({ email: emailSchema }))
-    .mutation(async () => {
-      throw new TRPCError({
-        code: "NOT_IMPLEMENTED",
-        message:
-          "La réinitialisation par e-mail nécessite un fournisseur d'envoi (non configuré dans cette version). Contactez le support.",
-      });
+    .mutation(async ({ ctx, input }) => {
+      rateLimit(
+        resetLimiter,
+        `reset:${input.email}:${ctx.ip ?? "unknown"}`,
+        "Trop de demandes. Réessayez dans quelques minutes.",
+      );
+      if (!emailDeliveryConfigured()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "L'envoi d'e-mails n'est pas encore configuré sur cette instance. Contactez l'administrateur.",
+        });
+      }
+      const [user] = await ctx.db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.email, input.email), isNull(users.deletedAt)))
+        .limit(1);
+      if (user) {
+        const token = await createPasswordResetToken(ctx.db, user.id);
+        try {
+          await sendPasswordResetEmail(input.email, token);
+        } catch (error) {
+          // On ne révèle pas l'existence du compte, mais l'incident est tracé.
+          console.error(
+            "[plume] échec de l'envoi de l'e-mail de réinitialisation:",
+            error instanceof Error ? error.message : "erreur inconnue",
+          );
+        }
+      }
+      return { ok: true };
+    }),
+
+  resetPassword: publicProcedure
+    .input(z.object({ token: z.string().min(20).max(500), newPassword: passwordSchema }))
+    .mutation(async ({ ctx, input }) => {
+      await resetPasswordWithToken(ctx.db, input.token, input.newPassword);
+      return { ok: true };
     }),
 });
 

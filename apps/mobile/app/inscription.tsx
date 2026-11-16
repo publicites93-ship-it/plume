@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { spacing } from "@plume/shared";
@@ -10,7 +10,7 @@ import {
   Input,
   Text,
 } from "@/components";
-import { queryClient, trpc } from "@/lib/api";
+import { queryClient, SERVER_WAKE_MESSAGE, trpc } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import { errorMessage } from "@/lib/errors";
 import { theme } from "@/theme";
@@ -25,6 +25,16 @@ export default function SignUpScreen() {
   const [confirm, setConfirm] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slowServer, setSlowServer] = useState(false);
+
+  useEffect(() => {
+    if (!signUp.isPending) {
+      setSlowServer(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowServer(true), 5_000);
+    return () => clearTimeout(timer);
+  }, [signUp.isPending]);
 
   async function submit() {
     setError(null);
@@ -36,8 +46,15 @@ export default function SignUpScreen() {
       setError("Indiquez une adresse e-mail valide.");
       return;
     }
-    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      setError("Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre.");
+    if (
+      password.length < 12 ||
+      !/[a-z]/.test(password) ||
+      !/[A-Z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      setError(
+        "Le mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule et un chiffre.",
+      );
       return;
     }
     if (password !== confirm) {
@@ -55,6 +72,17 @@ export default function SignUpScreen() {
         password,
         acceptedTerms: true,
       });
+      if (result.verificationRequired) {
+        router.replace({
+          pathname: "/verification-envoyee",
+          params: { email: email.trim(), sent: result.emailSent ? "1" : "0" },
+        });
+        return;
+      }
+      if (!result.tokens) {
+        setError("Le compte a été créé, mais la session n'a pas pu être ouverte. Connectez-vous.");
+        return;
+      }
       await setSession(result.tokens);
       await queryClient.invalidateQueries();
       router.replace("/onboarding");
@@ -82,6 +110,9 @@ export default function SignUpScreen() {
       }
     >
       {error ? <InlineNotice tone="danger">{error}</InlineNotice> : null}
+      {slowServer ? (
+        <InlineNotice tone="warning">{SERVER_WAKE_MESSAGE}</InlineNotice>
+      ) : null}
 
       <Input
         label="Pseudonyme d'auteur"
@@ -104,18 +135,18 @@ export default function SignUpScreen() {
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
-        hint="La vérification d'e-mail n'est pas encore active dans cette version."
+        hint="Utilisez une adresse à laquelle vous avez accès : elle sécurise votre compte."
       />
       <Input
         label="Mot de passe"
         required
         value={password}
         onChangeText={setPassword}
-        placeholder="Au moins 8 caractères"
+        placeholder="Au moins 12 caractères"
         secureTextEntry
         textContentType="newPassword"
         autoComplete="new-password"
-        hint="Une lettre et un chiffre minimum."
+        hint="12 caractères minimum, avec une majuscule, une minuscule et un chiffre."
       />
       <Input
         label="Confirmer le mot de passe"
@@ -145,10 +176,6 @@ export default function SignUpScreen() {
         onPress={submit}
       />
 
-      <InlineNotice tone="warning" title="Version de démonstration">
-        Aucun e-mail de vérification ne sera envoyé : le fournisseur d'envoi n'est pas configuré.
-        Le compte reste utilisable immédiatement.
-      </InlineNotice>
     </AuthShell>
   );
 }

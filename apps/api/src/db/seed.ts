@@ -120,7 +120,12 @@ export async function seedDatabase(db: Database): Promise<{ created: boolean; de
 
   const [reader] = await db
     .insert(users)
-    .values({ email: "lecteur@plume.app", passwordHash, plan: "plus" })
+    .values({
+      email: "lecteur@plume.app",
+      passwordHash,
+      plan: "plus",
+      emailVerifiedAt: new Date(),
+    })
     .returning();
   if (!reader) throw new Error("Seed: lecteur impossible.");
   await db.insert(profiles).values({
@@ -140,7 +145,7 @@ export async function seedDatabase(db: Database): Promise<{ created: boolean; de
     const email = `${demo.slug}@demo.plume.app`;
     const [author] = await db
       .insert(users)
-      .values({ email, passwordHash, plan: "plus" })
+      .values({ email, passwordHash, plan: "plus", emailVerifiedAt: new Date() })
       .returning();
     if (!author) continue;
     await db.insert(profiles).values({
@@ -226,7 +231,12 @@ export async function seedDatabase(db: Database): Promise<{ created: boolean; de
   // Compte auteur de démonstration, avec un manuscrit privé modifiable.
   const [authorUser] = await db
     .insert(users)
-    .values({ email: "auteur@plume.app", passwordHash, plan: "premium" })
+    .values({
+      email: "auteur@plume.app",
+      passwordHash,
+      plan: "premium",
+      emailVerifiedAt: new Date(),
+    })
     .returning();
   if (!authorUser) throw new Error("Seed: auteur impossible.");
   await db.insert(profiles).values({

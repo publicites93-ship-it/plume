@@ -5,6 +5,8 @@ import { profiles, refreshTokens, userPreferences, users } from "../db/schema";
 import { hashPassword, randomToken, sha256, verifyPassword } from "./password";
 import { signAccessToken } from "./tokens";
 import { getConfig } from "../config";
+import { createEmailVerificationToken } from "./emailTokens";
+import { sendVerificationEmail } from "../services/email";
 
 export interface SessionTokens {
   accessToken: string;
@@ -38,7 +40,12 @@ export async function issueSession(
 export async function registerUser(
   db: Database,
   input: { email: string; password: string; pseudonym: string },
-): Promise<{ userId: string; tokens: SessionTokens }> {
+): Promise<{
+  userId: string;
+  tokens?: SessionTokens;
+  verificationRequired: boolean;
+  emailSent: boolean;
+}> {
   const existingEmail = await db
     .select({ id: users.id })
     .from(users)
@@ -62,11 +69,19 @@ export async function registerUser(
     });
   }
 
+  const config = getConfig();
+  const verificationRequired = config.REQUIRE_EMAIL_VERIFICATION;
   const passwordHash = await hashPassword(input.password);
   const userId = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
-      .values({ email: input.email, passwordHash })
+      .values({
+        email: input.email,
+        passwordHash,
+        // Si la vérification n'est pas encore activée, le compte est utilisable
+        // immédiatement. L'activation ultérieure ne bloquera pas ces comptes.
+        emailVerifiedAt: verificationRequired ? null : new Date(),
+      })
       .returning({ id: users.id });
     if (!user) throw new Error("Création du compte impossible.");
     await tx.insert(profiles).values({ userId: user.id, pseudonym: input.pseudonym });
@@ -74,8 +89,24 @@ export async function registerUser(
     return user.id;
   });
 
-  const tokens = await issueSession(db, userId, "user");
-  return { userId, tokens };
+  if (!verificationRequired) {
+    const tokens = await issueSession(db, userId, "user");
+    return { userId, tokens, verificationRequired: false, emailSent: false };
+  }
+
+  const token = await createEmailVerificationToken(db, userId);
+  let emailSent = true;
+  try {
+    await sendVerificationEmail(input.email, token);
+  } catch (error) {
+    emailSent = false;
+    // Le message d'erreur ne contient jamais le jeton.
+    console.error(
+      "[plume] échec de l'envoi de l'e-mail de vérification:",
+      error instanceof Error ? error.message : "erreur inconnue",
+    );
+  }
+  return { userId, verificationRequired: true, emailSent };
 }
 
 export async function authenticateUser(
@@ -98,6 +129,15 @@ export async function authenticateUser(
   }
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) throw genericError;
+
+  if (getConfig().REQUIRE_EMAIL_VERIFICATION && !user.emailVerifiedAt) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "Votre adresse e-mail n'est pas encore vérifiée. Ouvrez le lien reçu, ou demandez un nouvel e-mail de vérification.",
+      cause: { details: { code: "EMAIL_NOT_VERIFIED" } },
+    });
+  }
 
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
   const tokens = await issueSession(db, user.id, user.role);

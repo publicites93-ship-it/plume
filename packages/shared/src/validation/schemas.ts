@@ -14,10 +14,27 @@ export const emailSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+  .min(12, "Le mot de passe doit contenir au moins 12 caractères.")
   .max(128, "Le mot de passe est trop long.")
-  .refine((value) => /[a-zA-Z]/.test(value) && /[0-9]/.test(value), {
-    message: "Le mot de passe doit contenir au moins une lettre et un chiffre.",
+  .superRefine((value, ctx) => {
+    if (!/[a-z]/.test(value)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Le mot de passe doit contenir au moins une minuscule.",
+      });
+    }
+    if (!/[A-Z]/.test(value)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Le mot de passe doit contenir au moins une majuscule.",
+      });
+    }
+    if (!/[0-9]/.test(value)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Le mot de passe doit contenir au moins un chiffre.",
+      });
+    }
   });
 
 export const pseudonymSchema = z
