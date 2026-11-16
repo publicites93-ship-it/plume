@@ -26,6 +26,12 @@ COPY tsconfig.base.json ./tsconfig.base.json
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
 
+# L'image n'est utilisée qu'en déploiement : le mode production active les
+# garde-fous de config.ts (JWT_SECRET aléatoire ≥ 32 caractères, DATABASE_URL
+# obligatoire) et masque les traces d'erreur. Placé après `npm ci` pour que
+# les devDependencies (tsx) restent installées.
+ENV NODE_ENV=production
+
 EXPOSE 4000
 
 # Les migrations sont idempotentes. Le seed de démonstration n'est exécuté
