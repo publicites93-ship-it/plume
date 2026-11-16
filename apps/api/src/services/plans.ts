@@ -1,7 +1,14 @@
 import { and, count, eq, gte, isNull, ne, sql, sum } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { Database } from "../db/client";
-import { AI_TASK_ESTIMATES, PLANS, type AiTaskKind, type PlanId } from "@plume/shared";
+import {
+  AI_TASK_CREDITS,
+  AI_TASK_ESTIMATES,
+  AI_TASK_KINDS,
+  PLANS,
+  type AiTaskKind,
+  type PlanId,
+} from "@plume/shared";
 import { aiUsageRecords, chapters, stories, users } from "../db/schema";
 
 export interface PlanSummary {
@@ -53,6 +60,22 @@ export async function tokensUsedThisMonth(db: Database, userId: string): Promise
   return Number(row?.total ?? 0);
 }
 
+/** Crédits consommés ce mois-ci : somme du coût en crédits de chaque action enregistrée. */
+export async function creditsUsedThisMonth(db: Database, userId: string): Promise<number> {
+  const rows = await db
+    .select({ taskKind: aiUsageRecords.taskKind, total: count() })
+    .from(aiUsageRecords)
+    .where(and(eq(aiUsageRecords.userId, userId), gte(aiUsageRecords.createdAt, startOfMonth())))
+    .groupBy(aiUsageRecords.taskKind);
+  return rows.reduce((sumCredits, row) => {
+    const kind = (AI_TASK_KINDS as readonly string[]).includes(row.taskKind)
+      ? (row.taskKind as AiTaskKind)
+      : null;
+    // Une tâche inconnue compte 1 crédit : le quota ne doit jamais être contourné.
+    return sumCredits + Number(row.total) * (kind ? AI_TASK_CREDITS[kind] : 1);
+  }, 0);
+}
+
 export async function countActiveStories(db: Database, userId: string): Promise<number> {
   const [row] = await db
     .select({ total: count() })
@@ -94,7 +117,7 @@ export async function getPlanSummary(db: Database, userId: string): Promise<Plan
   const planId = effectivePlan(user);
   const plan = PLANS[planId];
   const [used, activeStories, chaptersThisWeek] = await Promise.all([
-    tokensUsedThisMonth(db, userId),
+    creditsUsedThisMonth(db, userId),
     countActiveStories(db, userId),
     countChaptersThisWeek(db, userId),
   ]);
@@ -103,8 +126,8 @@ export async function getPlanSummary(db: Database, userId: string): Promise<Plan
     planName: plan.name,
     planExpiresAt: user.planExpiresAt?.toISOString() ?? null,
     creditsUsed: used,
-    creditsLimit: plan.aiTokensPerMonth,
-    creditsRemaining: Math.max(0, plan.aiTokensPerMonth - used),
+    creditsLimit: plan.aiCreditsPerMonth,
+    creditsRemaining: Math.max(0, plan.aiCreditsPerMonth - used),
     activeStories,
     activeStoriesLimit: plan.activeStories,
     chaptersThisWeek,
@@ -179,27 +202,44 @@ export async function assertAiQuota(
     .limit(1);
   if (!user) throw new TRPCError({ code: "UNAUTHORIZED", message: "Compte introuvable." });
   const plan = PLANS[effectivePlan(user)];
-  const estimated = AI_TASK_ESTIMATES[task];
-  const used = await tokensUsedThisMonth(db, userId);
-  if (used + estimated > plan.aiTokensPerMonth) {
+  const cost = AI_TASK_CREDITS[task];
+  const used = await creditsUsedThisMonth(db, userId);
+  const limit = plan.aiCreditsPerMonth;
+  if (used + cost > limit) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: `Votre enveloppe coach de ${plan.aiTokensPerMonth.toLocaleString(
-        "fr-FR",
-      )} crédits est presque épuisée (${used.toLocaleString("fr-FR")} utilisés). Elle se renouvellera le 1er du mois.`,
+      message: `Vous avez utilisé vos ${limit} crédit${limit > 1 ? "s" : ""} coach ce mois-ci. Ils se renouvelleront le 1er du mois${
+        plan.id === "premium" ? "." : ", ou dès maintenant avec une formule supérieure."
+      }`,
       cause: {
         details: {
           code: "QUOTA_EXCEEDED",
           used,
-          limit: plan.aiTokensPerMonth,
-          estimated,
+          limit,
+          cost,
           plan: plan.id,
-          upgrade: plan.id === "free" ? "plus" : "premium",
+          upgrade: plan.id === "free" ? "plus" : plan.id === "plus" ? "premium" : null,
         },
       },
     });
   }
-  return { estimatedTokens: estimated, used, limit: plan.aiTokensPerMonth };
+  return { estimatedTokens: AI_TASK_ESTIMATES[task], used, limit };
+}
+
+/**
+ * Coût fournisseur estimé en micro-dollars, pour suivre la rentabilité.
+ * Tarifs publics par million de tokens (entrée / sortie), relevés en novembre 2026.
+ */
+const MODEL_PRICES_PER_MTOK: Record<string, [number, number]> = {
+  "claude-sonnet-5-5": [2, 10],
+  "claude-haiku-5-5": [0.1, 0.5],
+  "gemini-3.8-flash": [0.75, 3.75],
+};
+
+export function estimateCostMicros(model: string, inputTokens: number, outputTokens: number): number {
+  const price = MODEL_PRICES_PER_MTOK[model];
+  if (!price) return 0;
+  return Math.round(inputTokens * price[0] + outputTokens * price[1]);
 }
 
 export async function recordAiUsage(
@@ -225,7 +265,8 @@ export async function recordAiUsage(
     model: input.model,
     inputTokens: input.inputTokens,
     outputTokens: input.outputTokens,
-    estimatedCostMicros: input.estimatedCostMicros ?? 0,
+    estimatedCostMicros:
+      input.estimatedCostMicros ?? estimateCostMicros(input.model, input.inputTokens, input.outputTokens),
   });
 }
 

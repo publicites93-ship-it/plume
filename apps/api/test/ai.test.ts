@@ -238,7 +238,7 @@ describe("coach littéraire (simulation locale)", () => {
     expect(after.length).toBe(before.length);
   });
 
-  it("bloque l'analyse quand le quota mensuel est épuisé", async () => {
+  it("compte 1 crédit par analyse : 3 en Gratuit, puis refus côté serveur", async () => {
     const poor = await registerUser(context.db);
     const story = await poor.caller.stories.create({
       title: "Quota",
@@ -249,22 +249,32 @@ describe("coach littéraire (simulation locale)", () => {
       title: "Texte",
       content: SAMPLE_TEXT,
     });
-    await context.db.insert(aiUsageRecords).values({
-      userId: poor.userId,
+    const request = {
       storyId: story.id,
-      taskKind: "chapter_diagnostic",
-      provider: "mock",
-      model: "mock",
-      inputTokens: 15_000,
-      outputTokens: 0,
+      chapterId: chapter.id,
+      skill: "tension" as const,
+      scope: "chapter" as const,
+    };
+    for (let i = 0; i < 3; i++) await poor.caller.ai.analyzeChapter(request);
+    const me = await poor.caller.auth.me();
+    expect(me.plan).toMatchObject({ creditsUsed: 3, creditsLimit: 3, creditsRemaining: 0 });
+    await expect(poor.caller.ai.analyzeChapter(request)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: expect.stringContaining("3 crédits coach"),
     });
-    await expect(
-      poor.caller.ai.analyzeChapter({
-        storyId: story.id,
-        chapterId: chapter.id,
-        skill: "tension",
-        scope: "chapter",
-      }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const usage = await context.db
+      .select()
+      .from(aiUsageRecords)
+      .where(eq(aiUsageRecords.userId, poor.userId));
+    expect(usage).toHaveLength(3);
+  });
+
+  it("applique 15 crédits en Plume+ et 30 en Plume++", async () => {
+    const plus = await registerUser(context.db);
+    await setPlan(context.db, plus.userId, "plus");
+    expect((await plus.caller.auth.me()).plan.creditsLimit).toBe(15);
+    const premium = await registerUser(context.db);
+    await setPlan(context.db, premium.userId, "premium");
+    expect((await premium.caller.auth.me()).plan.creditsLimit).toBe(30);
   });
 });

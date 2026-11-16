@@ -5,7 +5,8 @@ export interface PlanDefinition {
   name: string;
   priceLabel: string;
   priceCents: number;
-  aiTokensPerMonth: number;
+  /** Crédits coach par mois : 1 crédit = 1 action du coach (voir AI_TASK_CREDITS). */
+  aiCreditsPerMonth: number;
   activeStories: number;
   chaptersPerWeek: number;
   multiChapterAnalyses: boolean;
@@ -24,7 +25,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: "Plume",
     priceLabel: "Gratuit",
     priceCents: 0,
-    aiTokensPerMonth: 15_000,
+    aiCreditsPerMonth: 3,
     activeStories: 1,
     chaptersPerWeek: 3,
     multiChapterAnalyses: false,
@@ -35,7 +36,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       "Trois nouveaux chapitres par semaine",
       "Écriture, sauvegarde et export",
       "Lecture publique",
-      "Coach IA découverte (quota mensuel)",
+      "3 crédits coach par mois",
     ],
   },
   plus: {
@@ -43,7 +44,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: "Plume+",
     priceLabel: "4,99 € / mois",
     priceCents: 499,
-    aiTokensPerMonth: 100_000,
+    aiCreditsPerMonth: 15,
     activeStories: 5,
     chaptersPerWeek: 30,
     multiChapterAnalyses: false,
@@ -51,7 +52,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     versionComparisons: true,
     features: [
       "Cinq histoires actives",
-      "Coach IA étendu et diagnostics",
+      "15 crédits coach par mois",
       "Exercices personnalisés",
       "Historique et progression",
       "Mémoire narrative",
@@ -62,7 +63,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     name: "Plume++",
     priceLabel: "9,99 € / mois",
     priceCents: 999,
-    aiTokensPerMonth: 500_000,
+    aiCreditsPerMonth: 30,
     activeStories: 20,
     chaptersPerWeek: 100,
     multiChapterAnalyses: true,
@@ -73,7 +74,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       "Analyses multi-chapitres",
       "Mémoire narrative avancée",
       "Comparaisons longitudinales",
-      "Quotas IA supérieurs",
+      "30 crédits coach par mois",
     ],
   },
 };
@@ -94,7 +95,24 @@ export const AI_TASK_KINDS = [
 ] as const;
 export type AiTaskKind = (typeof AI_TASK_KINDS)[number];
 
-/** Estimation de coût en tokens utilisée pour la réservation de quota. */
+/**
+ * Coût en crédits de chaque action du coach. Règle produit : 1 crédit = 1 analyse.
+ * Le coût réel (tokens, dollars) reste suivi côté serveur dans ai_usage_records.
+ */
+export const AI_TASK_CREDITS: Record<AiTaskKind, number> = {
+  chapter_diagnostic: 1,
+  targeted_analysis: 1,
+  multi_chapter_analysis: 1,
+  memory_extraction: 1,
+  contradiction_check: 1,
+  exercise_generation: 1,
+  version_comparison: 1,
+  progress_report: 1,
+  coach_chat: 1,
+  narrative_summary: 1,
+};
+
+/** Estimation de coût en tokens (suivi interne, n'est plus le quota présenté). */
 export const AI_TASK_ESTIMATES: Record<AiTaskKind, number> = {
   chapter_diagnostic: 6_000,
   targeted_analysis: 2_500,
