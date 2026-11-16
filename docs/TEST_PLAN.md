@@ -15,14 +15,14 @@
 | Typecheck `@plume/mobile` | **Passe** | `tsc --noEmit` |
 | Bundle web Expo | **Se compile** | Routes principales en HTTP 200 |
 | Parcours API de bout en bout | **Passe** | Connexion, lecture, analyse, coach, CRUD bible, atelier |
-| Build Android EAS preview | **Passe** | APK `app.plume.reader` 0.1.0 (versionCode 1), 102 Mo, bundle avec URL HTTPS |
+| Build Android EAS preview | **Passe** | APK `app.plume.reader` 0.1.0 (versionCode 1), 102 Mo, bundle avec URL Render permanente |
 | Installation sur appareil physique | **Non testée** | APK produit, mais pas d'appareil connecté pour l'installer |
 | Test sur appareil physique | **Non testé** | Pas d'appareil connecté |
 | Audit visuel | **Non réalisé** | Pas de capture fiable dans cet environnement |
-| PostgreSQL réel | **Non testé** | PGlite uniquement |
-| Déploiement Docker/Render/Railway | **Non testé** | `Dockerfile`, `render.yaml` et `railway.json` préparés ; pas de Docker, `psql` ni CLI dans cet environnement |
+| PostgreSQL réel | **Passe (smoke test)** | API Render : migrations, seed et authentification vérifiés ; pas de test de charge ni de sauvegarde |
+| Déploiement Render | **Passe (smoke test)** | `https://plume-api.onrender.com` : `/health`, `/trpc/health`, `auth.signIn` et `auth.me` répondent en 200 |
 
-Le build EAS `9a70e677-0ed6-497e-8fd1-afaf00358fa0` a produit un APK signé, téléchargeable et dont le bundle contient bien l'URL HTTPS de l'API temporaire. Le tunnel Pinggy associé a expiré à 16:36 UTC : l'APK reste installable mais ne peut plus joindre l'API. Un déploiement durable est préparé dans `docs/DEPLOY_API.md`, mais n'a pas été exécuté ici. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
+Le build EAS `800f3995-2a34-4155-b5a1-22a3c9538ef8` a produit un APK signé dont le bundle contient `https://plume-api.onrender.com/trpc`. L'API Render est en ligne et les comptes de démonstration fonctionnent. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
 
 ---
 
