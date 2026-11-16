@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
   const session = useAuthStore((state) => state.session);
   const legalUrl =
     (Constants.expoConfig?.extra as { privacyPolicyUrl?: string } | undefined)
-      ?.privacyPolicyUrl ?? "https://plume-api.onrender.com/confidentialite";
+      ?.privacyPolicyUrl ?? "https://plume-api-qk9s.onrender.com/confidentialite";
 
   return (
     <View style={styles.root}>

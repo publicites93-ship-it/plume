@@ -86,8 +86,8 @@ Render Free Postgres **expire après 30 jours** (novembre 2026) et ne convient p
 2. Pousser le dépôt sur GitHub.
 3. Dans Render : **New → Blueprint**, connecter le dépôt.
 4. Render lit `render.yaml` et crée `plume-api`. Il demande `DATABASE_URL` : coller la chaîne Neon.
-5. Attendre la fin du déploiement, puis ouvrir `https://plume-api.onrender.com`.
-6. Vérifier `https://plume-api.onrender.com/health`.
+5. Attendre la fin du déploiement, puis ouvrir `https://plume-api-qk9s.onrender.com`.
+6. Vérifier `https://plume-api-qk9s.onrender.com/health`.
 
 Le `startCommand` de `render.yaml` applique les migrations, exécute le seed si `SEED_DEMO=true`, puis démarre l'API. Le service web gratuit Render peut se mettre en veille après 15 minutes d'inactivité : la première requête peut prendre plusieurs dizaines de secondes. L'URL reste stable. Render Free dispose de 512 Mo de RAM et de 750 heures d'instance par mois.
 

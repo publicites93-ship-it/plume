@@ -33,7 +33,7 @@ services:
       - key: SEED_DEMO
         value: "false"
       - key: PUBLIC_APP_URL
-        value: https://plume-api.onrender.com
+        value: https://plume-api-qk9s.onrender.com
       - key: EMAIL_PROVIDER
         value: console
       - key: RESEND_API_KEY

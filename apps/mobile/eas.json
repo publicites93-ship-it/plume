@@ -17,13 +17,16 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://plume-api.onrender.com/trpc"
+        "EXPO_PUBLIC_API_URL": "https://plume-api-qk9s.onrender.com/trpc"
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://plume-api-qk9s.onrender.com/trpc"
       }
     }
   },

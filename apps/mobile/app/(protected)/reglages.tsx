@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   const appVersion = Constants.expoConfig?.version ?? "0.2.0";
   const legalUrl =
     (Constants.expoConfig?.extra as { privacyPolicyUrl?: string } | undefined)
-      ?.privacyPolicyUrl ?? "https://plume-api.onrender.com/confidentialite";
+      ?.privacyPolicyUrl ?? "https://plume-api-qk9s.onrender.com/confidentialite";
 
   const fontScale = useUiStore((state) => state.fontScale);
   const setFontScale = useUiStore((state) => state.setFontScale);

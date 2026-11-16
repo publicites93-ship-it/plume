@@ -20,9 +20,9 @@
 | Test sur appareil physique | **Non testé** | Pas d'appareil connecté |
 | Audit visuel | **Non réalisé** | Pas de capture fiable dans cet environnement |
 | PostgreSQL réel | **Passe (smoke test)** | API Render : migrations, seed et authentification vérifiés ; pas de test de charge ni de sauvegarde |
-| Déploiement Render | **Passe (smoke test)** | `https://plume-api.onrender.com` : `/health`, `/trpc/health`, `auth.signIn` et `auth.me` répondent en 200 |
+| Déploiement Render | **Passe (smoke test)** | `https://plume-api-qk9s.onrender.com` : `/health`, `/trpc/health`, `auth.signIn` et `auth.me` répondent en 200 |
 
-Le build EAS `800f3995-2a34-4155-b5a1-22a3c9538ef8` a produit un APK signé dont le bundle contient `https://plume-api.onrender.com/trpc`. L'API Render est en ligne et les comptes de démonstration fonctionnent. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
+Le build EAS `800f3995-2a34-4155-b5a1-22a3c9538ef8` a produit un APK signé dont le bundle contient `https://plume-api-qk9s.onrender.com/trpc`. L'API Render est en ligne et les comptes de démonstration fonctionnent. L'APK n'a **pas** été installé sur un appareil physique : l'écran de démarrage, la connexion et les parcours tactiles restent à vérifier sur le Samsung Galaxy S24 Ultra.
 
 ---
 

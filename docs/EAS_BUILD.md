@@ -180,7 +180,7 @@ Pour un test durable, voir [docs/DEPLOY_API.md](DEPLOY_API.md) : Dockerfile, Pos
 | --- | --- | --- | --- |
 | 2026-11-15 14:18 UTC | `9c096b0f-6b99-4ec6-8ec1-a4175a9fe77d` | [APK](https://expo.dev/artifacts/eas/eSiftpIQ0tfVb8nJcffhVQ9jumpKjS9pJve1R3ybYjQ.apk) | Tunnel Pinggy expiré à 14:54 UTC |
 | 2026-11-15 15:52 UTC | `9a70e677-0ed6-497e-8fd1-afaf00358fa0` | [APK](https://expo.dev/artifacts/eas/9rT-2iH90C5l1P-h5SDKFy-UUvFZn_B286rm1cuI7RA.apk) | Tunnel Pinggy expiré à 16:36 UTC |
-| 2026-11-16 08:08 UTC | `800f3995-2a34-4155-b5a1-22a3c9538ef8` | [APK](https://expo.dev/artifacts/eas/Dk-8_Aa5aJYNy7KLkJpmx2NGNUgWTPhva-5Y7tRx8Cs.apk) | API Render active : `https://plume-api.onrender.com` |
+| 2026-11-16 08:08 UTC | `800f3995-2a34-4155-b5a1-22a3c9538ef8` | [APK](https://expo.dev/artifacts/eas/Dk-8_Aa5aJYNy7KLkJpmx2NGNUgWTPhva-5Y7tRx8Cs.apk) | API Render active : `https://plume-api-qk9s.onrender.com` |
 
 Les deux premiers APK sont installables, mais leurs URL d'API sont mortes. Le troisième pointe vers l'API Render durable.
 

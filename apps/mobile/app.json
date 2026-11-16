@@ -61,7 +61,7 @@
       ]
     ],
     "extra": {
-      "privacyPolicyUrl": "https://plume-api.onrender.com/confidentialite",
+      "privacyPolicyUrl": "https://plume-api-qk9s.onrender.com/confidentialite",
       "apiUrl": "",
       "router": {
         "asyncRoutes": {
