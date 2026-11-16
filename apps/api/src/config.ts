@@ -17,6 +17,8 @@ const envSchema = z.object({
   /** Nom alternatif accepté pour la clé Claude. */
   CLAUDE_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5-5"),
+  /** Modèle Claude des comptes Gratuit (moins coûteux). */
+  ANTHROPIC_MODEL_FREE: z.string().default("claude-haiku-5-5"),
   EMAIL_PROVIDER: z.enum(["console", "resend", "test"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Plume <no-reply@plume.app>"),

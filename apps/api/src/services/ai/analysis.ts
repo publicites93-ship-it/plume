@@ -117,8 +117,8 @@ export async function analyzeChapter(
     versionId = created?.id;
   }
 
-  await assertAiQuota(db, userId, "chapter_diagnostic");
-  const provider = getAIProvider();
+  const quota1 = await assertAiQuota(db, userId, "chapter_diagnostic");
+  const provider = getAIProvider(quota1.plan);
   const [analysis] = await db
     .insert(aiAnalyses)
     .values({
@@ -299,8 +299,8 @@ export async function analyzeStory(
     versionId = created?.id;
   }
 
-  await assertAiQuota(db, userId, "multi_chapter_analysis");
-  const provider = getAIProvider();
+  const quota2 = await assertAiQuota(db, userId, "multi_chapter_analysis");
+  const provider = getAIProvider(quota2.plan);
   let draft;
   try {
     draft = await provider.analyzeStory({
@@ -598,7 +598,7 @@ export async function sendCoachingMessage(
     return { userMessage, assistantMessage, citations: [] };
   }
 
-  await assertAiQuota(db, userId, "coach_chat");
+  const quota3 = await assertAiQuota(db, userId, "coach_chat");
 
   const [latest] = await db
     .select()
@@ -648,7 +648,7 @@ export async function sendCoachingMessage(
       .limit(1)
   )[0];
 
-  const provider = getAIProvider();
+  const provider = getAIProvider(quota3.plan);
   let draft;
   try {
     draft = await provider.coachReply({
@@ -745,8 +745,8 @@ export async function reviewExerciseAttempt(
     });
   }
 
-  await assertAiQuota(db, userId, "exercise_generation");
-  const provider = getAIProvider();
+  const quota4 = await assertAiQuota(db, userId, "exercise_generation");
+  const provider = getAIProvider(quota4.plan);
   let draft;
   try {
     draft = await provider.reviewExercise({

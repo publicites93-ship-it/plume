@@ -4,7 +4,14 @@ import { citationExists } from "@plume/shared";
 import { aiUsageRecords } from "../src/db/schema";
 import { resetConfigForTests } from "../src/config";
 import { resetAIProviderForTests } from "../src/services/ai/index";
-import { registerUser, SAMPLE_TEXT, setupDatabase, teardown, type TestContext } from "./helpers";
+import {
+  registerUser,
+  SAMPLE_TEXT,
+  setPlan,
+  setupDatabase,
+  teardown,
+  type TestContext,
+} from "./helpers";
 
 process.env.AI_PROVIDER = "anthropic";
 process.env.CLAUDE_API_KEY = "cle-de-test";
@@ -92,6 +99,8 @@ describe("fournisseur Claude", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     expect((init.headers as Record<string, string>)["x-api-key"]).toBe("cle-de-test");
+    // Compte Gratuit : modèle économique.
+    expect(JSON.parse(String(init.body)).model).toBe("claude-haiku-5-5");
 
     const quotes = result.findings.map((f) => f.quote).filter((q): q is string => Boolean(q));
     expect(quotes).toContain(realQuote);
@@ -104,6 +113,19 @@ describe("fournisseur Claude", () => {
       .where(eq(aiUsageRecords.userId, author.userId));
     expect(usage).toHaveLength(1);
     expect(usage[0]?.provider).toBe("anthropic");
+    expect(usage[0]?.model).toBe("claude-haiku-5-5");
+    expect(usage[0]?.estimatedCostMicros).toBe(1200 * 0.1 + 400 * 0.5);
+
+    // Formule payante : modèle complet.
+    await setPlan(context.db, author.userId, "plus");
+    await author.caller.ai.analyzeChapter({
+      storyId: story.id,
+      chapterId: chapter.id,
+      skill: "dialogues",
+      scope: "chapter",
+    });
+    const [, secondInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(secondInit.body)).model).toBe("claude-sonnet-5-5");
   });
 
   it("ne débite rien quand Claude refuse la requête", async () => {

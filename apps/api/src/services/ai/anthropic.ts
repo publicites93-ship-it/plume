@@ -15,12 +15,12 @@ export function anthropicApiKey(): string | undefined {
  * réseau diffère. Les citations restent vérifiées mot pour mot par analysis.ts.
  */
 export class AnthropicProvider extends GeminiProvider {
-  constructor() {
+  constructor(model: string = getConfig().ANTHROPIC_MODEL) {
     const apiKey = anthropicApiKey();
     if (!apiKey) {
       throw new ProviderUnavailableError("AI_PROVIDER=anthropic sans clé Claude.");
     }
-    super({ name: "anthropic", model: getConfig().ANTHROPIC_MODEL, apiKey });
+    super({ name: "anthropic", model, apiKey });
   }
 
   protected override async callJson<T>(

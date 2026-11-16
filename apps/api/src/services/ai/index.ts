@@ -4,8 +4,9 @@ import { AnthropicProvider, anthropicApiKey } from "./anthropic";
 import { GeminiProvider } from "./gemini";
 import { MockPedagogicalProvider } from "./mock";
 import type { AIProvider } from "./provider";
+import type { PlanId } from "@plume/shared";
 
-let provider: AIProvider | null = null;
+const providers = new Map<string, AIProvider>();
 
 /** État du coach exposé à l'application et à /health, sans aucun secret. */
 export function coachStatus(): {
@@ -23,9 +24,20 @@ export function coachStatus(): {
   return { provider: "gemini", isSimulation: false, available: Boolean(config.GEMINI_API_KEY) };
 }
 
-export function getAIProvider(): AIProvider {
-  if (provider) return provider;
+/**
+ * Fournisseur du coach. Avec Claude, les comptes Gratuit utilisent un modèle
+ * moins coûteux (ANTHROPIC_MODEL_FREE) ; les formules payantes, ANTHROPIC_MODEL.
+ */
+export function getAIProvider(plan: PlanId = "plus"): AIProvider {
   const config = getConfig();
+  const model =
+    config.AI_PROVIDER === "anthropic"
+      ? plan === "free"
+        ? config.ANTHROPIC_MODEL_FREE
+        : config.ANTHROPIC_MODEL
+      : config.AI_PROVIDER;
+  const cached = providers.get(model);
+  if (cached) return cached;
   if (!coachStatus().available) {
     // Le détail technique va au journal serveur ; l'auteur reçoit un message actionnable.
     console.error(`[plume] coach indisponible : AI_PROVIDER=${config.AI_PROVIDER} sans clé API.`);
@@ -35,15 +47,16 @@ export function getAIProvider(): AIProvider {
         "Le coach n'est pas encore disponible sur ce serveur. Aucun crédit n'a été décompté et votre manuscrit est intact.",
     });
   }
-  provider =
+  const provider =
     config.AI_PROVIDER === "anthropic"
-      ? new AnthropicProvider()
+      ? new AnthropicProvider(model)
       : config.AI_PROVIDER === "gemini"
         ? new GeminiProvider()
         : new MockPedagogicalProvider();
+  providers.set(model, provider);
   return provider;
 }
 
 export function resetAIProviderForTests(): void {
-  provider = null;
+  providers.clear();
 }

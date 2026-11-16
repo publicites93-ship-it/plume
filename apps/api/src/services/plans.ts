@@ -194,7 +194,7 @@ export async function assertAiQuota(
   db: Database,
   userId: string,
   task: AiTaskKind,
-): Promise<{ estimatedTokens: number; used: number; limit: number }> {
+): Promise<{ estimatedTokens: number; used: number; limit: number; plan: PlanId }> {
   const [user] = await db
     .select({ plan: users.plan, planExpiresAt: users.planExpiresAt })
     .from(users)
@@ -223,7 +223,7 @@ export async function assertAiQuota(
       },
     });
   }
-  return { estimatedTokens: AI_TASK_ESTIMATES[task], used, limit };
+  return { estimatedTokens: AI_TASK_ESTIMATES[task], used, limit, plan: plan.id };
 }
 
 /**

@@ -35,6 +35,9 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5-5
+      # Comptes Gratuit : modèle économique.
+      - key: ANTHROPIC_MODEL_FREE
+        value: claude-haiku-5-5
       - key: SEED_DEMO
         value: "false"
       - key: PUBLIC_APP_URL
