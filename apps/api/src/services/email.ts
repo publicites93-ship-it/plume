@@ -99,6 +99,11 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     return;
   }
 
+  if (config.EMAIL_PROVIDER === "brevo") {
+    await sendWithBrevo(message);
+    return;
+  }
+
   if (!config.RESEND_API_KEY) {
     throw new EmailDeliveryError(
       "RESEND_API_KEY est absente : impossible d'envoyer l'e-mail.",
@@ -122,6 +127,49 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
   });
 
   if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new EmailDeliveryError(
+      `Le fournisseur d'e-mails a refusé la requête (${response.status}). ${detail.slice(0, 300)}`,
+    );
+  }
+}
+
+/** Découpe « Nom <adresse> » en nom et adresse. */
+export function parseSender(from: string): { name?: string; email: string } {
+  const match = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) return { name: match[1] || undefined, email: match[2]!.trim() };
+  return { email: from.trim() };
+}
+
+/**
+ * Brevo (API HTTP v3). Utilisable sans nom de domaine : l'expéditeur doit être
+ * une adresse vérifiée dans Brevo. Avec une adresse gratuite (Gmail…), Brevo
+ * remplace l'adresse d'expédition par une adresse technique conforme.
+ */
+async function sendWithBrevo(message: EmailMessage): Promise<void> {
+  const config = getConfig();
+  if (!config.BREVO_API_KEY) {
+    throw new EmailDeliveryError("BREVO_API_KEY est absente : impossible d'envoyer l'e-mail.");
+  }
+  const sender = parseSender(config.EMAIL_FROM);
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": config.BREVO_API_KEY,
+      "content-type": "application/json",
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: message.to }],
+      subject: message.subject,
+      htmlContent: message.html,
+      textContent: message.text,
+    }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    // Le message d'erreur Brevo ne contient ni la clé ni le jeton de l'e-mail.
     const detail = await response.text().catch(() => "");
     throw new EmailDeliveryError(
       `Le fournisseur d'e-mails a refusé la requête (${response.status}). ${detail.slice(0, 300)}`,

@@ -19,8 +19,9 @@ const envSchema = z.object({
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5-5"),
   /** Modèle Claude des comptes Gratuit (moins coûteux). */
   ANTHROPIC_MODEL_FREE: z.string().default("claude-haiku-5-5"),
-  EMAIL_PROVIDER: z.enum(["console", "resend", "test"]).default("console"),
+  EMAIL_PROVIDER: z.enum(["console", "resend", "brevo", "test"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
+  BREVO_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Plume <no-reply@plume.app>"),
   PUBLIC_APP_URL: z.string().url().default("http://localhost:4000"),
   REQUIRE_EMAIL_VERIFICATION: z
@@ -56,19 +57,24 @@ export function getConfig(): AppConfig {
       throw new Error("DATABASE_URL est requis en production (PostgreSQL).");
     }
     if (env.REQUIRE_EMAIL_VERIFICATION) {
-      if (env.EMAIL_PROVIDER !== "resend") {
+      if (env.EMAIL_PROVIDER !== "resend" && env.EMAIL_PROVIDER !== "brevo") {
         throw new Error(
-          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_PROVIDER=resend en production.",
+          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_PROVIDER=resend ou brevo en production.",
         );
       }
-      if (!env.RESEND_API_KEY) {
+      if (env.EMAIL_PROVIDER === "resend" && !env.RESEND_API_KEY) {
         throw new Error(
           "REQUIRE_EMAIL_VERIFICATION=true exige RESEND_API_KEY en production.",
         );
       }
+      if (env.EMAIL_PROVIDER === "brevo" && !env.BREVO_API_KEY) {
+        throw new Error(
+          "REQUIRE_EMAIL_VERIFICATION=true exige BREVO_API_KEY en production.",
+        );
+      }
       if (env.EMAIL_FROM === "Plume <no-reply@plume.app>") {
         throw new Error(
-          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_FROM avec un domaine expéditeur vérifié.",
+          "REQUIRE_EMAIL_VERIFICATION=true exige EMAIL_FROM avec une adresse expéditeur vérifiée.",
         );
       }
       if (!env.PUBLIC_APP_URL.startsWith("https://")) {
