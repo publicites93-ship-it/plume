@@ -68,11 +68,21 @@ const exerciseReviewSchema = z.object({
  * du compte configuré : ne jamais activer sans validation.
  */
 export class GeminiProvider implements AIProvider {
-  readonly name = "gemini";
+  readonly name: string = "gemini";
   readonly model: string;
-  private readonly apiKey: string;
+  protected readonly apiKey: string;
 
-  constructor() {
+  /**
+   * `override` permet à un autre fournisseur (Claude) de réutiliser les mêmes
+   * consignes pédagogiques et schémas de réponse en ne changeant que l'appel réseau.
+   */
+  constructor(override?: { name: string; model: string; apiKey: string }) {
+    if (override) {
+      this.name = override.name;
+      this.model = override.model;
+      this.apiKey = override.apiKey;
+      return;
+    }
     const config = getConfig();
     if (!config.GEMINI_API_KEY) {
       throw new ProviderUnavailableError(
@@ -158,7 +168,7 @@ export class GeminiProvider implements AIProvider {
     };
   }
 
-  private async callJson<T>(
+  protected async callJson<T>(
     prompt: string,
     schema: z.ZodType<T>,
     maxOutputTokens: number,

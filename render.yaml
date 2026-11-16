@@ -30,6 +30,11 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
+      # AI_PROVIDER=anthropic : coach Claude. Clé acceptée sous ANTHROPIC_API_KEY ou CLAUDE_API_KEY.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
       - key: SEED_DEMO
         value: "false"
       - key: PUBLIC_APP_URL
