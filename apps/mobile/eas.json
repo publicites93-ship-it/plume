@@ -15,6 +15,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://plume-api.onrender.com/trpc"
       }
     },
     "production": {
