@@ -1,3 +1,4 @@
+import { coachStatus } from "./services/ai/index";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -115,6 +116,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
     ok: true,
     service: "plume-api",
     ai: config.AI_PROVIDER,
+    aiAvailable: coachStatus().available,
     email: config.EMAIL_PROVIDER,
     emailVerification: config.REQUIRE_EMAIL_VERIFICATION,
   }));

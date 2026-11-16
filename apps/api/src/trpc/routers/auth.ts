@@ -1,3 +1,4 @@
+import { coachStatus } from "../../services/ai/index";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -75,10 +76,7 @@ async function loadMe(db: Parameters<typeof getPlanSummary>[0], userId: string) 
   const planSummary = await getPlanSummary(db, userId);
   const config = getConfig();
   return {
-    coach: {
-      provider: config.AI_PROVIDER,
-      isSimulation: config.AI_PROVIDER === "mock",
-    },
+    coach: coachStatus(),
     user: {
       id: row.user.id,
       email: row.user.email,

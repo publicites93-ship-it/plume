@@ -42,7 +42,12 @@ describe("échec du fournisseur IA", () => {
         skill: "tension",
         scope: "chapter",
       }),
-    ).rejects.toBeTruthy();
+    ).rejects.toMatchObject({
+      code: "SERVICE_UNAVAILABLE",
+      message: expect.stringContaining("Aucun crédit n'a été décompté"),
+    });
+    const me = await author.caller.auth.me();
+    expect(me.coach).toEqual({ provider: "gemini", isSimulation: false, available: false });
 
     const usage = await context.db
       .select()

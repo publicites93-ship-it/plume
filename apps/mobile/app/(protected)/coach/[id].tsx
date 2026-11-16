@@ -205,6 +205,12 @@ export default function CoachScreen() {
           </View>
         </View>
         {me.data?.coach.isSimulation ? <SimulationNotice compact /> : null}
+        {me.data && !me.data.coach.available ? (
+          <InlineNotice tone="warning" title="Coach momentanément indisponible">
+            Les analyses et les corrections ne peuvent pas être lancées pour l'instant. Aucun crédit
+            ne sera décompté et votre manuscrit reste intact.
+          </InlineNotice>
+        ) : null}
       </Card>
 
       <SectionHeader title="Lancer un diagnostic" eyebrow="Atelier" />
