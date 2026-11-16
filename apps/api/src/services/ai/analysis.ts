@@ -23,7 +23,23 @@ import {
 import { requireOwnedStory } from "../stories";
 import { assertAiQuota, recordAiUsage } from "../plans";
 import { getAIProvider } from "./index";
+import { ProviderUnavailableError } from "./provider";
 import { contentHash } from "../stories";
+
+/**
+ * Journalise la cause d'un échec du coach sans contenu sensible : pour les
+ * erreurs de base, seul le code SQL est gardé (la requête peut contenir le manuscrit).
+ */
+function logAiFailure(action: string, error: unknown): void {
+  if (error instanceof ProviderUnavailableError) {
+    console.error(`[plume] ${action} : ${error.message}`);
+    return;
+  }
+  const name = error instanceof Error ? error.name : typeof error;
+  const code = (error as { cause?: { code?: string }; code?: string })?.cause?.code ??
+    (error as { code?: string })?.code;
+  console.error(`[plume] ${action} : ${name}${code ? ` (${code})` : ""}`);
+}
 
 export async function analyzeChapter(
   db: Database,
@@ -204,6 +220,7 @@ export async function analyzeChapter(
 
     return getAnalysis(db, analysis.id, userId);
   } catch (error) {
+    logAiFailure("analyse de chapitre", error);
     await db
       .update(aiAnalyses)
       .set({
@@ -284,11 +301,22 @@ export async function analyzeStory(
 
   await assertAiQuota(db, userId, "multi_chapter_analysis");
   const provider = getAIProvider();
-  const draft = await provider.analyzeStory({
-    storyTitle: row.story.title,
-    chapterTitle: row.chapter.title,
-    manuscript: row.chapter.content,
-  });
+  let draft;
+  try {
+    draft = await provider.analyzeStory({
+      storyTitle: row.story.title,
+      chapterTitle: row.chapter.title,
+      manuscript: row.chapter.content,
+    });
+  } catch (error) {
+    logAiFailure("analyse globale", error);
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Le coach n'a pas pu terminer l'analyse globale. Aucun crédit n'a été débité ; vous pouvez réessayer.",
+    });
+  }
 
   const expected = new Set(SKILLS.map((skill) => skill.id));
   const seen = new Set<SkillId>();
@@ -635,6 +663,7 @@ export async function sendCoachingMessage(
       message: content,
     });
   } catch (error) {
+    logAiFailure("réponse du coach", error);
     if (error instanceof TRPCError) throw error;
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
@@ -728,6 +757,7 @@ export async function reviewExerciseAttempt(
       content: input.content,
     });
   } catch (error) {
+    logAiFailure("correction d'exercice", error);
     if (error instanceof TRPCError) throw error;
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",

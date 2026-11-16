@@ -184,6 +184,16 @@ export class GeminiProvider implements AIProvider {
     );
 
     if (!response.ok) {
+      // Journal d'exploitation : code et message d'erreur de Google uniquement.
+      // Ni la clé (absente de ce message) ni le manuscrit ne sont journalisés.
+      let reason = "";
+      try {
+        const body = (await response.json()) as { error?: { status?: string; message?: string } };
+        reason = `${body.error?.status ?? ""} ${body.error?.message ?? ""}`.trim().slice(0, 300);
+      } catch {
+        reason = "réponse illisible";
+      }
+      console.error(`[plume] Gemini ${this.model} a refusé la requête (${response.status}) : ${reason}`);
       throw new ProviderUnavailableError(
         `Le fournisseur IA a refusé la requête (${response.status}).`,
       );
@@ -197,10 +207,22 @@ export class GeminiProvider implements AIProvider {
     try {
       parsedJson = JSON.parse(raw);
     } catch {
+      console.error(
+        `[plume] Gemini ${this.model} : réponse non JSON (${raw.length} caractères, fin : ${
+          (payload as { candidates?: Array<{ finishReason?: string }> }).candidates?.[0]
+            ?.finishReason ?? "inconnue"
+        }).`,
+      );
       throw new ProviderUnavailableError("La réponse du fournisseur IA n'est pas un JSON valide.");
     }
     const parsed = schema.safeParse(parsedJson);
     if (!parsed.success) {
+      console.error(
+        `[plume] Gemini ${this.model} : schéma non respecté (${parsed.error.issues
+          .slice(0, 5)
+          .map((issue) => `${issue.path.join(".")} ${issue.code}`)
+          .join(", ")}).`,
+      );
       throw new ProviderUnavailableError(
         "La réponse du fournisseur IA ne respecte pas le schéma pédagogique attendu.",
       );
