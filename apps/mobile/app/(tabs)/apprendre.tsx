@@ -47,8 +47,11 @@ export default function LearnScreen() {
     const average = scored.length
       ? Math.round(scored.reduce((sum, skill) => sum + (skill.score ?? 0), 0) / scored.length)
       : null;
-    const strongest = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
-    return { average, strongest, scored: scored.length };
+    const sorted = [...scored].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const strongest = sorted[0];
+    // Compétence à travailler : la plus basse, si elle se distingue du point fort.
+    const weakest = sorted.length > 1 ? sorted[sorted.length - 1] : undefined;
+    return { average, strongest, weakest, scored: scored.length };
   }, [skills]);
 
   if (progress.isLoading && learning.isLoading) {
@@ -117,6 +120,41 @@ export default function LearnScreen() {
           </View>
         ) : null}
       </Card>
+
+      {summary.weakest ? (
+        <Card style={styles.focusCard}>
+          <Badge tone="bordeaux" icon="flag-outline">
+            À travailler en priorité
+          </Badge>
+          <Text variant="heading">{summary.weakest.name}</Text>
+          <Text variant="caption" color={theme.textSecondary}>
+            C'est votre compétence la moins assurée d'après vos derniers diagnostics (
+            {summary.weakest.score}/100). L'atelier propose des exercices ciblés ; le coach peut
+            corriger chacun de vos essais.
+          </Text>
+          <Button
+            label="Faire un exercice ciblé"
+            icon="create-outline"
+            size="sm"
+            onPress={() =>
+              router.push({
+                pathname: "/atelier/[slug]",
+                params: { slug: SKILL_BY_ID[summary.weakest!.id as keyof typeof SKILL_BY_ID].workshopSlug },
+              })
+            }
+            style={styles.focusButton}
+          />
+        </Card>
+      ) : summary.scored === 0 ? (
+        <Card style={styles.focusCard}>
+          <Text variant="bodyStrong">Des exercices adaptés à votre écriture</Text>
+          <Text variant="caption" color={theme.textSecondary}>
+            Lancez une analyse depuis le coach d'une de vos histoires : Plume repérera vos points
+            forts et la compétence à travailler en priorité, puis vous proposera l'atelier
+            correspondant.
+          </Text>
+        </Card>
+      ) : null}
 
       <SectionHeader title="Les sept compétences" eyebrow="Progression" />
       <View style={styles.skillList}>
@@ -246,6 +284,14 @@ export default function LearnScreen() {
 }
 
 const styles = StyleSheet.create({
+  focusCard: {
+    gap: 8,
+    marginTop: 12,
+  },
+  focusButton: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+  },
   flex: { flex: 1 },
   summaryCard: {
     gap: 14,

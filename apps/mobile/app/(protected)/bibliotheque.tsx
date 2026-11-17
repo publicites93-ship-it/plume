@@ -45,9 +45,9 @@ export default function LibraryScreen() {
     >
       <PageHeader
         back
-        eyebrow="Votre bibliothèque"
-        title="Lectures suivies"
-        subtitle="Les histoires que vous suivez, avec la reprise exacte de votre lecture."
+        eyebrow="Vos favoris"
+        title="Ma bibliothèque"
+        subtitle="Les histoires ajoutées en favoris (étoile en fin de chapitre ou sur la fiche), avec la reprise exacte de votre lecture."
         right={
           <Button
             label="Découvrir"

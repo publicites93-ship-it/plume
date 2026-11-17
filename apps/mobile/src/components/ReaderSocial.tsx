@@ -104,7 +104,12 @@ export function ChapterEndSocial({
         utils.reading.story.invalidate({ storyId }),
         utils.reading.library.invalidate(),
       ]);
-      toast(result.following ? "Ajoutée à vos favoris." : "Retirée de vos favoris.", "success");
+      toast(
+        result.following
+          ? "Ajoutée à vos favoris (Profil › Mes favoris)."
+          : "Retirée de vos favoris.",
+        "success",
+      );
     } catch (error) {
       toast(errorMessage(error), "error");
     }

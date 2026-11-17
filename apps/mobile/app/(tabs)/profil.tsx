@@ -171,9 +171,9 @@ export default function ProfileScreen() {
       <Card padded={false}>
         <View style={styles.listPad}>
           <ListRow
-            icon="library-outline"
-            title="Ma bibliothèque"
-            subtitle="Histoires suivies et reprises en cours"
+            icon="star-outline"
+            title="Mes favoris · bibliothèque"
+            subtitle="Histoires ajoutées en favoris, avec la reprise de lecture"
             rightText={`${library.data?.length ?? 0}`}
             onPress={() => router.push("/bibliotheque")}
           />

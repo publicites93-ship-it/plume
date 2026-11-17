@@ -62,7 +62,7 @@ export default function PublicStoryScreen() {
         utils.reading.library.invalidate(),
         utils.reading.stats.invalidate({ storyId }),
       ]);
-      toast(data?.following ? "Histoire retirée de votre bibliothèque." : "Histoire ajoutée à votre bibliothèque.", "success");
+      toast(data?.following ? "Histoire retirée de vos favoris." : "Histoire ajoutée à vos favoris.", "success");
     } catch (error) {
       toast(errorMessage(error), "error");
     }
@@ -175,8 +175,8 @@ export default function PublicStoryScreen() {
         <Divider />
         <View style={styles.heroActions}>
           <Button
-            label={data.following ? "Dans ma bibliothèque" : "Ajouter à ma bibliothèque"}
-            icon={data.following ? "checkmark" : "add"}
+            label={data.following ? "Dans mes favoris" : "Ajouter aux favoris"}
+            icon={data.following ? "star" : "star-outline"}
             variant={data.following ? "secondary" : "primary"}
             size="sm"
             loading={toggleFollow.isPending}
