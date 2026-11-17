@@ -25,6 +25,7 @@ import { queryClient, trpc } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { formatNumber } from "@/lib/format";
 import { toast } from "@/lib/toast";
+import { openStripePage } from "@/lib/billing";
 import { palette, theme } from "@/theme";
 
 export default function WriteScreen() {
@@ -34,6 +35,27 @@ export default function WriteScreen() {
   const stories = trpc.stories.list.useQuery();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  const billing = trpc.billing.status.useQuery(undefined, { enabled: plansOpen });
+  const checkout = trpc.billing.checkout.useMutation();
+  const portal = trpc.billing.portal.useMutation();
+
+  async function subscribe(planId: "plus" | "premium") {
+    try {
+      const { url } = await checkout.mutateAsync({ plan: planId });
+      await openStripePage(url);
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    }
+  }
+
+  async function manageSubscription() {
+    try {
+      const { url } = await portal.mutateAsync();
+      await openStripePage(url);
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    }
+  }
 
   const createStory = trpc.stories.create.useMutation();
 
@@ -343,7 +365,7 @@ export default function WriteScreen() {
         visible={plansOpen}
         onClose={() => setPlansOpen(false)}
         title="Formules Plume"
-        subtitle="Les limites sont appliquées côté serveur. Chaque formule précise ses crédits coach et ses fonctions d'écriture."
+        subtitle="Mensuel, sans engagement : résiliable à tout moment. Les limites sont appliquées côté serveur."
       >
         {Object.values(PLANS).map((definition) => (
           <Card
@@ -360,6 +382,18 @@ export default function WriteScreen() {
               </View>
               {definition.id === plan!.plan ? <Badge tone="gold">Actuelle</Badge> : null}
             </View>
+            {definition.id !== "free" &&
+            definition.id !== plan!.plan &&
+            billing.data?.available &&
+            !billing.data.subscription ? (
+              <Button
+                label={`Passer à ${definition.name}`}
+                icon="card-outline"
+                size="sm"
+                loading={checkout.isPending && checkout.variables?.plan === definition.id}
+                onPress={() => void subscribe(definition.id as "plus" | "premium")}
+              />
+            ) : null}
             <View style={styles.featureList}>
               {definition.features.map((feature) => (
                 <View key={feature} style={styles.featureRow}>
@@ -372,10 +406,36 @@ export default function WriteScreen() {
             </View>
           </Card>
         ))}
-        <InlineNotice tone="warning">
-          Le paiement et la facturation ne sont pas branchés. Cette page présente les enveloppes
-          prévues ; elle ne permet aucun achat.
-        </InlineNotice>
+        {billing.data?.subscription ? (
+          <Card style={styles.planOption}>
+            <Text variant="bodyStrong">Votre abonnement</Text>
+            <Text variant="caption" color={theme.textSecondary}>
+              {billing.data.subscription.cancelAtPeriodEnd
+                ? `Résilié : la formule reste active jusqu'au ${formatDay(billing.data.subscription.currentPeriodEnd)}.`
+                : `Renouvellement le ${formatDay(billing.data.subscription.currentPeriodEnd)}.`}
+            </Text>
+          </Card>
+        ) : null}
+        {billing.data?.canManage ? (
+          <Button
+            label="Gérer mon abonnement"
+            icon="settings-outline"
+            variant="secondary"
+            loading={portal.isPending}
+            onPress={() => void manageSubscription()}
+          />
+        ) : null}
+        {billing.data && !billing.data.available ? (
+          <InlineNotice tone="info">
+            Les abonnements ouvriront très bientôt. Vos histoires et votre formule actuelle ne
+            changent pas d'ici là.
+          </InlineNotice>
+        ) : (
+          <InlineNotice tone="info">
+            Paiement sécurisé par Stripe : Plume ne voit ni ne conserve vos données bancaires.
+            Changement de formule et résiliation depuis « Gérer mon abonnement ».
+          </InlineNotice>
+        )}
       </Sheet>
     </Screen>
   );
@@ -490,3 +550,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
 });
+
+function formatDay(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}

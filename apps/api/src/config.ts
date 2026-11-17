@@ -22,6 +22,11 @@ const envSchema = z.object({
   EMAIL_PROVIDER: z.enum(["console", "resend", "brevo", "test"]).default("console"),
   RESEND_API_KEY: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
+  /** Paiement Stripe. Les quatre valeurs sont nécessaires pour activer l'abonnement. */
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_PLUS: z.string().optional(),
+  STRIPE_PRICE_PREMIUM: z.string().optional(),
   EMAIL_FROM: z.string().default("Plume <no-reply@plume.app>"),
   PUBLIC_APP_URL: z.string().url().default("http://localhost:4000"),
   REQUIRE_EMAIL_VERIFICATION: z

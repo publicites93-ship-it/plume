@@ -1,4 +1,5 @@
 import { coachStatus } from "./services/ai/index";
+import { billingConfigured } from "./services/billing";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -11,6 +12,7 @@ import { appRouter } from "./trpc/router";
 import { registerLegalRoutes } from "./routes/legal";
 import { registerAuthPages } from "./routes/authPages";
 import { registerCoverRoutes } from "./routes/covers";
+import { registerBillingRoutes } from "./routes/billing";
 
 export interface BuildAppOptions {
   db?: Database;
@@ -118,6 +120,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
     service: "plume-api",
     ai: config.AI_PROVIDER,
     aiAvailable: coachStatus().available,
+    billing: billingConfigured(),
     email: config.EMAIL_PROVIDER,
     emailVerification: config.REQUIRE_EMAIL_VERIFICATION,
   }));
@@ -125,6 +128,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
   await registerLegalRoutes(app);
   await registerAuthPages(app, db);
   await registerCoverRoutes(app, db);
+  await registerBillingRoutes(app, db);
 
   app.setErrorHandler((error: unknown, _request, reply) => {
     const normalized = error as { message?: string; code?: string };

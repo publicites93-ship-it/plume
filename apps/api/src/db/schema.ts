@@ -497,12 +497,19 @@ export const subscriptions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     plan: planEnum("plan").notNull(),
     provider: text("provider").notNull().default("google_play"),
+    /** Identifiant de l'abonnement chez le fournisseur (Stripe : sub_…). */
     providerRef: text("provider_ref"),
+    /** Identifiant du client chez le fournisseur (Stripe : cus_…), pour le portail. */
+    customerRef: text("customer_ref"),
     status: text("status").notNull().default("active"),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
     ...timestamps,
   },
-  (table) => [index("subscriptions_user_idx").on(table.userId, table.status)],
+  (table) => [
+    index("subscriptions_user_idx").on(table.userId, table.status),
+    uniqueIndex("subscriptions_provider_ref_unique").on(table.provider, table.providerRef),
+  ],
 );
 
 export const entitlements = pgTable(

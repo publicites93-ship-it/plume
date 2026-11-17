@@ -1,4 +1,5 @@
 import { coachStatus } from "../../services/ai/index";
+import { cancelSubscriptionsForDeletion } from "../../services/billing";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -278,6 +279,8 @@ export const authRouter = router({
           message: "Mot de passe incorrect. La suppression n'a pas été effectuée.",
         });
       }
+      // Un compte supprimé ne doit plus jamais être débité : résiliation d'abord.
+      await cancelSubscriptionsForDeletion(ctx.db, ctx.userId);
       await ctx.db.insert(auditEvents).values({
         actorId: ctx.userId,
         action: "account.deleted",

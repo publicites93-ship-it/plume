@@ -119,10 +119,15 @@ function privacyBody(): string {
   <h2>5. Destinataires et sous-traitants</h2>
   <p>
     Les données sont accessibles à l'éditeur de Plume et aux prestataires techniques nécessaires :
-    hébergement de l'API, base de données PostgreSQL, envoi d'e-mails transactionnels et, si activé,
-    fournisseur d'IA. Ces prestataires agissent sur instruction et selon leurs engagements de
+    hébergement de l'API, base de données PostgreSQL, envoi d'e-mails transactionnels, paiement des
+    abonnements (Stripe) et, si activé, fournisseur d'IA. Ces prestataires agissent sur instruction et selon leurs engagements de
     confidentialité. Certains peuvent être situés hors de l'Union européenne ; les transferts
     s'appuient alors sur les garanties prévues par le RGPD.
+  </p>
+  <p>
+    Pour les abonnements, le paiement est saisi directement chez Stripe : Plume ne reçoit ni ne
+    conserve vos données de carte. Plume conserve uniquement l'identifiant client Stripe, l'état de
+    l'abonnement et sa date de renouvellement.
   </p>
   <p>Plume ne vend pas vos données et ne les utilise pas pour de la publicité ciblée.</p>
 
@@ -211,6 +216,19 @@ function termsBody(): string {
   <p>
     Les quotas et crédits du coach sont appliqués côté serveur. Une action échouée ne doit pas
     consommer de crédits. Les quotas peuvent évoluer avec les formules.
+  </p>
+
+  <h2>4 bis. Formules payantes</h2>
+  <p>
+    Plume+ et Plume++ sont des abonnements mensuels, payés par carte via Stripe et renouvelés
+    automatiquement chaque mois jusqu'à leur résiliation. Les prix affichés dans l'application sont
+    TTC. Vous pouvez changer de formule ou résilier à tout moment depuis « Gérer mon abonnement » :
+    la formule reste active jusqu'à la fin de la période déjà payée, sans nouveau prélèvement.
+  </p>
+  <p>
+    Les crédits coach sont mensuels et ne se reportent pas d'un mois sur l'autre. La suppression du
+    compte résilie immédiatement l'abonnement. Pour exercer votre droit de rétractation ou pour
+    toute question de facturation, écrivez à <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.
   </p>
 
   <h2>5. Catalogue public</h2>

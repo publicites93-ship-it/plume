@@ -49,6 +49,15 @@ services:
       # Sans nom de domaine : EMAIL_PROVIDER=brevo, BREVO_API_KEY, EMAIL_FROM = expéditeur vérifié dans Brevo.
       - key: BREVO_API_KEY
         sync: false
+      # Paiement Stripe (abonnements Plume+ / Plume++). Les quatre sont nécessaires.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PLUS
+        sync: false
+      - key: STRIPE_PRICE_PREMIUM
+        sync: false
       - key: EMAIL_FROM
         sync: false
       - key: REQUIRE_EMAIL_VERIFICATION
