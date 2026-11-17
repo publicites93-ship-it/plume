@@ -23,9 +23,29 @@ const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 const PAID_PLANS = ["plus", "premium"] as const;
 type PaidPlan = (typeof PAID_PLANS)[number];
 
-export function billingConfigured(): boolean {
+/**
+ * Contrôle de forme des variables Stripe (sans jamais afficher leur valeur) :
+ * une clé publique à la place de la clé secrète ou un identifiant de produit à
+ * la place d'un prix sont des erreurs fréquentes de configuration.
+ */
+export function billingConfigIssues(): string[] {
   const c = getConfig();
-  return Boolean(c.STRIPE_SECRET_KEY && c.STRIPE_WEBHOOK_SECRET && c.STRIPE_PRICE_PLUS && c.STRIPE_PRICE_PREMIUM);
+  const checks: Array<[string, string | undefined, RegExp, string]> = [
+    ["STRIPE_SECRET_KEY", c.STRIPE_SECRET_KEY, /^(sk|rk)_(test|live)_/, "doit être la clé secrète (sk_test_… ou sk_live_…), pas la clé publique pk_…"],
+    ["STRIPE_WEBHOOK_SECRET", c.STRIPE_WEBHOOK_SECRET, /^whsec_/, "doit commencer par whsec_"],
+    ["STRIPE_PRICE_PLUS", c.STRIPE_PRICE_PLUS, /^price_/, "doit être un identifiant de prix price_…, pas un produit prod_…"],
+    ["STRIPE_PRICE_PREMIUM", c.STRIPE_PRICE_PREMIUM, /^price_/, "doit être un identifiant de prix price_…, pas un produit prod_…"],
+  ];
+  const issues: string[] = [];
+  for (const [name, value, pattern, hint] of checks) {
+    if (!value) issues.push(`${name} manquant`);
+    else if (!pattern.test(value.trim())) issues.push(`${name} ${hint}`);
+  }
+  return issues;
+}
+
+export function billingConfigured(): boolean {
+  return billingConfigIssues().length === 0;
 }
 
 function requireBilling() {
@@ -40,13 +60,13 @@ function requireBilling() {
 
 function priceFor(plan: PaidPlan): string {
   const c = getConfig();
-  return (plan === "plus" ? c.STRIPE_PRICE_PLUS : c.STRIPE_PRICE_PREMIUM)!;
+  return (plan === "plus" ? c.STRIPE_PRICE_PLUS : c.STRIPE_PRICE_PREMIUM)!.trim();
 }
 
 function planForPrice(priceId: string | undefined): PaidPlan | null {
   const c = getConfig();
-  if (priceId && priceId === c.STRIPE_PRICE_PLUS) return "plus";
-  if (priceId && priceId === c.STRIPE_PRICE_PREMIUM) return "premium";
+  if (priceId && priceId === c.STRIPE_PRICE_PLUS?.trim()) return "plus";
+  if (priceId && priceId === c.STRIPE_PRICE_PREMIUM?.trim()) return "premium";
   return null;
 }
 
@@ -71,7 +91,7 @@ async function stripe<T>(method: "GET" | "POST" | "DELETE", path: string, params
   const response = await fetch(`${STRIPE_API}${path}`, {
     method,
     headers: {
-      authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      authorization: `Bearer ${STRIPE_SECRET_KEY!.trim()}`,
       "content-type": "application/x-www-form-urlencoded",
     },
     body: method === "GET" ? undefined : body,

@@ -44,7 +44,7 @@ export async function registerBillingRoutes(app: FastifyInstance, db: Database) 
       done(null, body),
     );
     scope.post("/stripe/webhook", async (request, reply) => {
-      const secret = getConfig().STRIPE_WEBHOOK_SECRET;
+      const secret = getConfig().STRIPE_WEBHOOK_SECRET?.trim();
       if (!secret) return reply.code(503).send({ error: "Paiement non configuré." });
       const raw = request.body as Buffer;
       const signature = request.headers["stripe-signature"];

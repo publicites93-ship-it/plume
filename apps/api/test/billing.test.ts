@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { resetConfigForTests } from "../src/config";
 import { subscriptions, users } from "../src/db/schema";
 import { buildApp, type BuiltApp } from "../src/app";
-import { verifyStripeSignature } from "../src/services/billing";
+import { billingConfigIssues, verifyStripeSignature } from "../src/services/billing";
 import { TEST_PASSWORD, registerUser, setupDatabase, teardown, type TestContext } from "./helpers";
 
 const WEBHOOK_SECRET = "whsec_test_secret";
@@ -168,6 +168,21 @@ describe("paiement Stripe", () => {
     expect(calls.some((c) => c.method === "DELETE" && c.url.endsWith("/subscriptions/sub_del"))).toBe(true);
     const remaining = await context.db.select().from(users).where(eq(users.id, user.userId));
     expect(remaining).toHaveLength(0);
+  });
+
+  it("signale une clé publique ou un produit à la place d'un prix, sans afficher les valeurs", () => {
+    expect(billingConfigIssues()).toEqual([]);
+    process.env.STRIPE_SECRET_KEY = "pk_test_publique";
+    process.env.STRIPE_PRICE_PLUS = "prod_123";
+    resetConfigForTests();
+    const issues = billingConfigIssues();
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toContain("STRIPE_SECRET_KEY");
+    expect(issues[1]).toContain("STRIPE_PRICE_PLUS");
+    expect(issues.join(" ")).not.toContain("pk_test_publique");
+    process.env.STRIPE_SECRET_KEY = "sk_test_cle";
+    process.env.STRIPE_PRICE_PLUS = "price_plus";
+    resetConfigForTests();
   });
 
   it("sert les pages de retour avec un lien vers l'appli", async () => {
