@@ -39,6 +39,8 @@ export default function ReaderScreen() {
   const setReadingTheme = useUiStore((state) => state.setReadingTheme);
   const fontScale = useUiStore((state) => state.fontScale);
   const setFontScale = useUiStore((state) => state.setFontScale);
+  const readingFont = useUiStore((state) => state.readingFont);
+  const setReadingFont = useUiStore((state) => state.setReadingFont);
 
   const chapterQuery = trpc.reading.chapter.useQuery({ chapterId }, { enabled: Boolean(chapterId) });
   const saveProgress = trpc.reading.saveProgress.useMutation();
@@ -341,6 +343,39 @@ export default function ReaderScreen() {
             ))}
           </View>
         </View>
+        <View style={styles.settingGroup}>
+          <Text variant="label" color={theme.textSecondary}>
+            Police
+          </Text>
+          <View style={styles.themeRow}>
+            {(
+              [
+                { id: "serif", label: "Classique", family: typography.literary },
+                { id: "sans", label: "Moderne", family: typography.ui },
+              ] as const
+            ).map((option) => {
+              const selected = readingFont === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`Police ${option.label}`}
+                  onPress={() => setReadingFont(option.id)}
+                  style={[styles.themeOption, styles.fontOption, selected && styles.themeSelected]}
+                >
+                  <Text style={{ fontFamily: option.family, fontSize: 20, color: theme.textPrimary }}>
+                    Aa
+                  </Text>
+                  <Text variant="caption" color={theme.textSecondary}>
+                    {option.label}
+                  </Text>
+                  {selected ? <Ionicons name="checkmark-circle" size={16} color={theme.gold} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <InlineNotice tone="info">
           La taille choisie s'applique aussi aux écrans de l'application. Les titres suivent la
           préférence de façon atténuée pour préserver la mise en page.
@@ -391,6 +426,10 @@ export default function ReaderScreen() {
 }
 
 const styles = StyleSheet.create({
+  fontOption: {
+    backgroundColor: theme.surface,
+    borderColor: theme.border,
+  },
   root: { flex: 1 },
   flex: { flex: 1 },
   errorHeader: {

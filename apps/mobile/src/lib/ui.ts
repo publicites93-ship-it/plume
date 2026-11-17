@@ -2,14 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { fontScaleOptions, type FontScale, type ReadingThemeId } from "@plume/shared";
 
+/** Police du lecteur : Lora (classique, à empattements) ou Inter (moderne). */
+export type ReadingFont = "serif" | "sans";
+
 interface UiState {
   fontScale: FontScale;
+  readingFont: ReadingFont;
   readingTheme: ReadingThemeId;
   writingTheme: ReadingThemeId;
   reduceMotion: boolean;
   hydrated: boolean;
   hydrate: () => Promise<void>;
   setFontScale: (scale: FontScale) => void;
+  setReadingFont: (font: ReadingFont) => void;
   setReadingTheme: (theme: ReadingThemeId) => void;
   setWritingTheme: (theme: ReadingThemeId) => void;
   setReduceMotion: (value: boolean) => void;
@@ -33,15 +38,26 @@ function normalizeTheme(value?: string): ReadingThemeId {
 
 async function persist(state: {
   fontScale: FontScale;
+  readingFont: ReadingFont;
   readingTheme: ReadingThemeId;
   writingTheme: ReadingThemeId;
   reduceMotion: boolean;
 }) {
-  await AsyncStorage.setItem(KEY, JSON.stringify(state));
+  await AsyncStorage.setItem(
+    KEY,
+    JSON.stringify({
+      fontScale: state.fontScale,
+      readingFont: state.readingFont,
+      readingTheme: state.readingTheme,
+      writingTheme: state.writingTheme,
+      reduceMotion: state.reduceMotion,
+    }),
+  );
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
   fontScale: 1,
+  readingFont: "serif",
   readingTheme: "night",
   writingTheme: "night",
   reduceMotion: false,
@@ -53,6 +69,7 @@ export const useUiStore = create<UiState>((set, get) => ({
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         set({
           fontScale: normalizeScale(Number(parsed.fontScale ?? 1)),
+          readingFont: parsed.readingFont === "sans" ? "sans" : "serif",
           readingTheme: normalizeTheme(String(parsed.readingTheme ?? "night")),
           writingTheme: normalizeTheme(String(parsed.writingTheme ?? "night")),
           reduceMotion: Boolean(parsed.reduceMotion ?? false),
@@ -65,6 +82,10 @@ export const useUiStore = create<UiState>((set, get) => ({
   setFontScale: (fontScale) => {
     set({ fontScale });
     void persist({ ...get(), fontScale });
+  },
+  setReadingFont: (readingFont) => {
+    set({ readingFont });
+    void persist({ ...get(), readingFont });
   },
   setReadingTheme: (readingTheme) => {
     set({ readingTheme });

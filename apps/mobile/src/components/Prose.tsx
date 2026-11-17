@@ -2,7 +2,18 @@ import { Fragment, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { typography } from "@plume/shared";
 import { Text } from "./Text";
-import { useUiStore } from "@/lib/ui";
+import { useUiStore, type ReadingFont } from "@/lib/ui";
+
+const FONTS: Record<ReadingFont, { regular: string; italic: string; bold: string; synthItalic: boolean }> = {
+  serif: {
+    regular: typography.literary,
+    italic: typography.literaryItalic,
+    bold: typography.literaryMedium,
+    synthItalic: false,
+  },
+  // Inter n'est chargée qu'en romain : l'italique est simulé par le système.
+  sans: { regular: typography.ui, italic: typography.ui, bold: typography.uiSemibold, synthItalic: true },
+};
 
 /**
  * Rendu de lecture volontairement simple : paragraphes, gras (`**`) et
@@ -15,13 +26,16 @@ function InlineMarkdown({
   size,
   lineHeight,
   italic,
+  font,
 }: {
   value: string;
   color: string;
   size: number;
   lineHeight: number;
   italic?: boolean;
+  font: ReadingFont;
 }) {
+  const family = FONTS[font];
   const parts = useMemo(
     () => value.split(/(\*\*[^*]+\*\*|_[^_\n]+_)/g).filter((part) => part.length > 0),
     [value],
@@ -31,7 +45,8 @@ function InlineMarkdown({
       selectable
       style={{
         color,
-        fontFamily: italic ? typography.literaryItalic : typography.literary,
+        fontFamily: italic ? family.italic : family.regular,
+        fontStyle: italic && family.synthItalic ? "italic" : "normal",
         fontSize: size,
         lineHeight,
       }}
@@ -39,14 +54,17 @@ function InlineMarkdown({
       {parts.map((part, index) => {
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <Text key={index} style={styles.bold}>
+            <Text key={index} style={{ fontFamily: family.bold }}>
               {part.slice(2, -2)}
             </Text>
           );
         }
         if (part.startsWith("_") && part.endsWith("_")) {
           return (
-            <Text key={index} style={styles.italic}>
+            <Text
+              key={index}
+              style={{ fontFamily: family.italic, fontStyle: family.synthItalic ? "italic" : "normal" }}
+            >
               {part.slice(1, -1)}
             </Text>
           );
@@ -69,6 +87,7 @@ export function Prose({
   baseSize?: number;
 }) {
   const fontScale = useUiStore((state) => state.fontScale);
+  const readingFont = useUiStore((state) => state.readingFont);
   const size = baseSize * fontScale;
   const blocks = useMemo(
     () =>
@@ -113,6 +132,7 @@ export function Prose({
               size={size}
               lineHeight={size * 1.72}
               italic={quote}
+              font={readingFont}
             />
           </View>
         );
@@ -127,12 +147,6 @@ const styles = StyleSheet.create({
   },
   heading: {
     marginTop: 6,
-  },
-  bold: {
-    fontFamily: typography.literaryMedium,
-  },
-  italic: {
-    fontFamily: typography.literaryItalic,
   },
   quote: {
     borderLeftWidth: 2,
