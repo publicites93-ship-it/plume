@@ -45,9 +45,14 @@ export async function discoverRows(db: Database, userId?: string) {
   const ids = candidates.map((row) => row.story.id);
   const since = new Date(Date.now() - WEEK_MS);
 
-  const [likesAll, favoritesAll, likesWeek, favoritesWeek, readersWeek, reactionsWeek] = await Promise.all([
+  const [likesAll, favoritesAll, readersAll, likesWeek, favoritesWeek, readersWeek, reactionsWeek] = await Promise.all([
     db.select({ id: chapterLikes.storyId, n: count() }).from(chapterLikes).where(inArray(chapterLikes.storyId, ids)).groupBy(chapterLikes.storyId),
     db.select({ id: storyFollows.storyId, n: count() }).from(storyFollows).where(inArray(storyFollows.storyId, ids)).groupBy(storyFollows.storyId),
+    db
+      .select({ id: readingProgress.storyId, n: countDistinct(readingProgress.userId) })
+      .from(readingProgress)
+      .where(inArray(readingProgress.storyId, ids))
+      .groupBy(readingProgress.storyId),
     db
       .select({ id: chapterLikes.storyId, n: count() })
       .from(chapterLikes)
@@ -70,7 +75,15 @@ export async function discoverRows(db: Database, userId?: string) {
       .groupBy(storyReactions.storyId),
   ]);
   const toMap = (rows: Array<{ id: string; n: number }>) => new Map(rows.map((row) => [row.id, Number(row.n)]));
-  const [lAll, fAll, lWeek, fWeek, rWeek, xWeek] = [likesAll, favoritesAll, likesWeek, favoritesWeek, readersWeek, reactionsWeek].map(toMap);
+  const [lAll, fAll, rAll, lWeek, fWeek, rWeek, xWeek] = [
+    likesAll,
+    favoritesAll,
+    readersAll,
+    likesWeek,
+    favoritesWeek,
+    readersWeek,
+    reactionsWeek,
+  ].map(toMap);
 
   const cards = candidates.map((row) => ({
     ...row.story,
@@ -80,6 +93,7 @@ export async function discoverRows(db: Database, userId?: string) {
     excerpt: excerpt(row.story.synopsis ?? "", 150),
     likes: lAll!.get(row.story.id) ?? 0,
     favorites: fAll!.get(row.story.id) ?? 0,
+    readers: rAll!.get(row.story.id) ?? 0,
     lastChapterAt: row.lastChapterAt ? new Date(row.lastChapterAt) : null,
     // Activité de la semaine : un lecteur pèse 1, un J'aime 2, un favori 3, une réaction 1.
     weekScore:

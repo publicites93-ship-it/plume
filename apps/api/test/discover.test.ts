@@ -55,6 +55,9 @@ describe("écran Découvrir", () => {
     expect(anonymous.forYou).toEqual([]);
     expect(anonymous.trending[0]?.id).toBe(romance.id);
     expect(anonymous.mostLoved.map((item) => item.id)).toEqual([romance.id]);
+    expect(anonymous.mostLoved[0]).toMatchObject({ likes: 1, favorites: 1, readers: 0 });
+    const brumes = anonymous.latest.find((item) => item.id === fantasy.id);
+    expect(brumes).toMatchObject({ likes: 0, favorites: 0, readers: 1 });
     expect(anonymous.latest).toHaveLength(3);
 
     // Selon mes goûts : le lecteur a lu du Fantastique ; on lui propose l'autre

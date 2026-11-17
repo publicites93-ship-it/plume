@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { radii, spacing } from "@plume/shared";
 import { Card } from "./Card";
 import { Cover, type CoverMotif } from "./Cover";
@@ -20,6 +21,10 @@ export interface StoryCardData {
   visibility?: string | null;
   coverMotif?: string | null;
   coverAssetUrl?: string | null;
+  /** Compteurs publics, présents dans les rangées de l'écran Découvrir. */
+  likes?: number;
+  favorites?: number;
+  readers?: number;
   subtitle?: string | null;
 }
 
@@ -142,6 +147,32 @@ export function StoryTile({
         <Text variant="caption" color={theme.textMuted} numberOfLines={1}>
           {story.authorName ?? story.genre ?? "Plume"}
         </Text>
+        {story.likes !== undefined ? (
+          <View
+            style={styles.tileStats}
+            accessible
+            accessibilityLabel={`${story.likes} J'aime, ${story.favorites ?? 0} favoris, ${story.readers ?? 0} lecteurs`}
+          >
+            <View style={styles.tileStat}>
+              <Ionicons name="heart" size={12} color={theme.danger} />
+              <Text variant="caption" color={theme.textSecondary}>
+                {formatNumber(story.likes)}
+              </Text>
+            </View>
+            <View style={styles.tileStat}>
+              <Ionicons name="star" size={12} color={theme.gold} />
+              <Text variant="caption" color={theme.textSecondary}>
+                {formatNumber(story.favorites ?? 0)}
+              </Text>
+            </View>
+            <View style={styles.tileStat}>
+              <Ionicons name="eye-outline" size={12} color={theme.textMuted} />
+              <Text variant="caption" color={theme.textSecondary}>
+                {formatNumber(story.readers ?? 0)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
       </View>
     </Card>
   );
@@ -193,6 +224,16 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: theme.gold,
+  },
+  tileStats: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  tileStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   tileBody: {
     paddingHorizontal: 12,
