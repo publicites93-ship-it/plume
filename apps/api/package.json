@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate-cli.ts",
     "db:seed": "tsx src/db/seed-cli.ts",
-    "db:cleanup-demo": "tsx src/db/cleanup-demo-cli.ts"
+    "db:cleanup-demo": "tsx src/db/cleanup-demo-cli.ts",
+    "db:set-plan": "tsx src/db/set-plan-cli.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",
