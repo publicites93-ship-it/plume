@@ -26,6 +26,7 @@ import {
   toggleChapterLike,
   toggleStoryReaction,
 } from "../../services/social";
+import { discoverRows } from "../../services/discover";
 
 export const readingRouter = router({
   catalog: publicProcedure
@@ -39,6 +40,8 @@ export const readingRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => listCatalog(ctx.db, input)),
+
+  discover: publicProcedure.query(async ({ ctx }) => discoverRows(ctx.db, ctx.userId)),
 
   story: publicProcedure
     .input(z.object({ storyId: z.string().uuid() }))

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { GENRES, radii, spacing } from "@plume/shared";
@@ -14,8 +14,11 @@ import {
   LoadingState,
   PageHeader,
   Screen,
+  SectionHeader,
   StoryRowCard,
+  StoryTile,
   Text,
+  type StoryCardData,
 } from "@/components";
 import { trpc } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
@@ -45,11 +48,26 @@ export default function DiscoverScreen() {
     cursor: 0,
   });
 
+  const filtering = Boolean(debounced || genre || status);
+  const discover = trpc.reading.discover.useQuery(undefined, { enabled: !filtering });
+  const rows: Array<{ key: string; title: string; eyebrow: string; items: StoryCardData[] }> = [
+    { key: "trending", title: "Histoires du moment", eyebrow: "Cette semaine", items: discover.data?.trending ?? [] },
+    { key: "forYou", title: "Selon vos goûts", eyebrow: "D'après vos favoris et lectures", items: discover.data?.forYou ?? [] },
+    { key: "mostLoved", title: "Les plus aimées", eyebrow: "J'aime et favoris", items: discover.data?.mostLoved ?? [] },
+    { key: "latest", title: "Nouveautés", eyebrow: "Derniers chapitres publiés", items: discover.data?.latest ?? [] },
+  ];
+
   const items = catalog.data?.items ?? [];
   const hasMore = Boolean(catalog.data?.nextCursor);
 
   return (
-    <Screen refreshing={catalog.isRefetching} onRefresh={() => void catalog.refetch()}>
+    <Screen
+      refreshing={catalog.isRefetching || discover.isRefetching}
+      onRefresh={() => {
+        void catalog.refetch();
+        if (!filtering) void discover.refetch();
+      }}
+    >
       <PageHeader
         eyebrow="La bibliothèque"
         title="Découvrir"
@@ -75,6 +93,33 @@ export default function DiscoverScreen() {
         accessibilityLabel="Rechercher dans le catalogue"
         right={<Ionicons name="search" size={18} color={theme.textMuted} />}
       />
+
+      {!filtering
+        ? rows
+            .filter((row) => row.items.length > 0)
+            .map((row) => (
+              <View key={row.key} style={styles.carousel}>
+                <SectionHeader title={row.title} eyebrow={row.eyebrow} />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.carouselContent}
+                  accessibilityLabel={row.title}
+                >
+                  {row.items.map((story) => (
+                    <StoryTile
+                      key={story.id}
+                      story={story}
+                      width={132}
+                      onPress={() =>
+                        router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
+                      }
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            ))
+        : null}
 
       <View style={styles.filterBlock}>
         <Text variant="label" color={theme.textMuted}>
@@ -113,7 +158,7 @@ export default function DiscoverScreen() {
 
       <View style={styles.resultHeader}>
         <Text variant="label" color={theme.gold}>
-          {debounced ? `Recherche « ${debounced} »` : "Sélection"}
+          {debounced ? `Recherche « ${debounced} »` : filtering ? "Sélection" : "Toutes les histoires"}
         </Text>
         <Text variant="caption" color={theme.textMuted}>
           {items.length} histoire{items.length > 1 ? "s" : ""}
@@ -179,6 +224,13 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
+  carousel: {
+    marginTop: spacing[4],
+  },
+  carouselContent: {
+    gap: spacing[3],
+    paddingRight: spacing[4],
+  },
   libraryButton: {
     width: 44,
     height: 44,
