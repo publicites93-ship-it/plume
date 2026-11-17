@@ -1,8 +1,18 @@
+import { CHARACTER_SHEET_KEYS, LOCATION_SHEET_KEYS, RELATION_KIND_IDS } from "../domain/studio";
 import { z } from "zod";
 import { GENRES, CONTENT_WARNINGS } from "../design/tokens";
 
 const genreEnum = z.enum([...GENRES] as [string, ...string[]]);
 const warningEnum = z.enum([...CONTENT_WARNINGS] as [string, ...string[]]);
+
+/** Dictionnaire de champs de fiche : clés connues uniquement, valeurs courtes. */
+function studioSheet(keys: string[]) {
+  return z
+    .record(z.string(), z.string().trim().max(4000))
+    .refine((value) => Object.keys(value).every((key) => keys.includes(key)), {
+      message: "Champ de fiche inconnu.",
+    });
+}
 
 export const emailSchema = z
   .string()
@@ -156,6 +166,9 @@ export const characterSchema = z.object({
     .array(z.object({ label: z.string().max(60), value: z.string().max(2000) }))
     .max(20)
     .optional(),
+  /** Autres noms et surnoms : servent aussi à repérer les doublons. */
+  aliases: z.array(z.string().trim().min(1).max(80)).max(12).optional(),
+  sheet: studioSheet(CHARACTER_SHEET_KEYS).optional(),
 });
 
 export const locationSchema = z.object({
@@ -165,6 +178,7 @@ export const locationSchema = z.object({
   atmosphere: z.string().trim().max(2000).optional().nullable(),
   history: z.string().trim().max(4000).optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
+  sheet: studioSheet(LOCATION_SHEET_KEYS).optional(),
 });
 
 export const plotThreadSchema = z.object({
@@ -174,6 +188,7 @@ export const plotThreadSchema = z.object({
   stakes: z.string().trim().max(2000).optional().nullable(),
   status: z.enum(["planned", "active", "resolved", "abandoned"]).default("planned"),
   resolution: z.string().trim().max(2000).optional().nullable(),
+  kind: z.enum(["main", "secondary"]).optional(),
 });
 
 export const timelineEventSchema = z.object({
@@ -184,7 +199,21 @@ export const timelineEventSchema = z.object({
   narrativeOrder: z.number().int().min(0).default(0),
   chapterId: z.string().uuid().optional().nullable(),
   consequences: z.string().trim().max(2000).optional().nullable(),
+  certainty: z.enum(["confirmed", "hypothesis", "idea"]).optional(),
 });
+
+export const characterRelationSchema = z
+  .object({
+    storyId: z.string().uuid(),
+    fromCharacterId: z.string().uuid(),
+    toCharacterId: z.string().uuid(),
+    kind: z.enum(RELATION_KIND_IDS),
+    description: z.string().trim().max(2000).optional().nullable(),
+  })
+  .refine((value) => value.fromCharacterId !== value.toCharacterId, {
+    message: "Une relation relie deux personnages différents.",
+    path: ["toCharacterId"],
+  });
 
 export const ideaSchema = z.object({
   storyId: z.string().uuid(),

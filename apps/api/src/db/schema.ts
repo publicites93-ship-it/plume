@@ -729,6 +729,9 @@ export const characters = pgTable(
     arc: text("arc"),
     notes: text("notes"),
     customFields: jsonb("custom_fields").$type<Array<{ label: string; value: string }>>().notNull().default([]),
+    aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
+    /** Champs de fiche supplémentaires (voir CHARACTER_SECTIONS dans @plume/shared). */
+    sheet: jsonb("sheet").$type<Record<string, string>>().notNull().default({}),
     ...timestamps,
   },
   (table) => [index("characters_story_idx").on(table.storyId, table.name)],
@@ -746,6 +749,7 @@ export const locations = pgTable(
     atmosphere: text("atmosphere"),
     history: text("history"),
     notes: text("notes"),
+    sheet: jsonb("sheet").$type<Record<string, string>>().notNull().default({}),
     ...timestamps,
   },
   (table) => [index("locations_story_idx").on(table.storyId, table.name)],
@@ -763,6 +767,8 @@ export const plotThreads = pgTable(
     stakes: text("stakes"),
     status: plotStatusEnum("status").notNull().default("planned"),
     resolution: text("resolution"),
+    /** "main" ou "secondary". */
+    kind: text("kind").notNull().default("secondary"),
     ...timestamps,
   },
   (table) => [index("plots_story_idx").on(table.storyId)],
@@ -781,9 +787,59 @@ export const timelineEvents = pgTable(
     narrativeOrder: integer("narrative_order").notNull().default(0),
     chapterId: uuid("chapter_id").references(() => chapters.id, { onDelete: "set null" }),
     consequences: text("consequences"),
+    /** "confirmed" (établi dans le texte), "hypothesis" ou "idea" (piste pour la suite). */
+    certainty: text("certainty").notNull().default("confirmed"),
     ...timestamps,
   },
   (table) => [index("events_story_idx").on(table.storyId, table.narrativeOrder)],
+);
+
+/** Liens entre deux personnages d'une même histoire (carte des relations). */
+export const characterRelations = pgTable(
+  "character_relations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    fromCharacterId: uuid("from_character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    toCharacterId: uuid("to_character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    description: text("description"),
+    /** Origine de l'information : "author" (saisie), "extracted" ou "suggested" (IA, phase 2). */
+    origin: text("origin").notNull().default("author"),
+    sourceChapterId: uuid("source_chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("character_relations_story_idx").on(table.storyId),
+    uniqueIndex("character_relations_unique").on(table.fromCharacterId, table.toCharacterId, table.kind),
+  ],
+);
+
+/**
+ * Images du studio (portraits, lieux). Privées : visibles uniquement par l'auteur,
+ * même lorsque l'histoire est publiée. Stockées en base, en nombre et poids limités.
+ */
+export const studioMedia = pgTable(
+  "studio_media",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    mimeType: text("mime_type").notNull(),
+    data: text("data").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("studio_media_entity_idx").on(table.entityType, table.entityId, table.createdAt)],
 );
 
 export const storyIdeas = pgTable(

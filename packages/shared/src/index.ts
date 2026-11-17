@@ -2,6 +2,7 @@ export * from "./design/tokens";
 export * from "./domain/skills";
 export * from "./domain/plans";
 export * from "./domain/social";
+export * from "./domain/studio";
 export * from "./validation/schemas";
 export * from "./text";
 export * from "./content/types";

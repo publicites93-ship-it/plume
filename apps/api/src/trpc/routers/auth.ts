@@ -181,6 +181,17 @@ export const authRouter = router({
       return loadMe(ctx.db, ctx.userId);
     }),
 
+  /** Profil Lire / Écrire / Écrire et lire, modifiable à tout moment depuis les réglages. */
+  setGoal: protectedProcedure
+    .input(z.object({ goal: z.enum(["read", "write", "both"]) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(profiles)
+        .set({ goal: input.goal, updatedAt: new Date() })
+        .where(eq(profiles.userId, ctx.userId));
+      return loadMe(ctx.db, ctx.userId);
+    }),
+
   completeOnboarding: protectedProcedure
     .input(onboardingSchema)
     .mutation(async ({ ctx, input }) => {

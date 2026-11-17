@@ -10,6 +10,17 @@ import {
   timelineEvents,
 } from "../db/schema";
 import { requireOwnedStory } from "./stories";
+import { deleteMediaForEntity, listMedia, listRelations } from "./studio";
+
+/** Retire les champs vides : une information inconnue reste non renseignée. */
+function cleanSheet(sheet?: Record<string, string>): Record<string, string> {
+  if (!sheet) return {};
+  return Object.fromEntries(
+    Object.entries(sheet)
+      .map(([key, value]) => [key, value.trim()] as const)
+      .filter(([, value]) => value.length > 0),
+  );
+}
 
 type OwnedTable = typeof characters | typeof locations | typeof plotThreads | typeof timelineEvents;
 
@@ -42,6 +53,10 @@ export async function listNarrative(db: Database, storyId: string, userId: strin
       db.select().from(storyIdeas).where(eq(storyIdeas.storyId, storyId)).orderBy(desc(storyIdeas.createdAt)),
       db.select().from(storyPlans).where(eq(storyPlans.storyId, storyId)).limit(1),
     ]);
+  const [relationRows, mediaRows] = await Promise.all([
+    listRelations(db, storyId),
+    listMedia(db, storyId),
+  ]);
   return {
     characters: characterRows,
     locations: locationRows,
@@ -49,6 +64,8 @@ export async function listNarrative(db: Database, storyId: string, userId: strin
     events: eventRows,
     ideas: ideaRows,
     plan: planRows[0] ?? null,
+    relations: relationRows,
+    media: mediaRows,
   };
 }
 
@@ -66,12 +83,19 @@ export async function createCharacter(
     arc?: string | null;
     notes?: string | null;
     customFields?: Array<{ label: string; value: string }>;
+    aliases?: string[];
+    sheet?: Record<string, string>;
   },
 ) {
   await requireOwnedStory(db, input.storyId, userId);
   const [row] = await db
     .insert(characters)
-    .values({ ...input, customFields: input.customFields ?? [] })
+    .values({
+      ...input,
+      customFields: input.customFields ?? [],
+      aliases: input.aliases ?? [],
+      sheet: cleanSheet(input.sheet),
+    })
     .returning();
   return row;
 }
@@ -89,14 +113,16 @@ export async function updateCharacter(
     arc: string | null;
     notes: string | null;
     customFields: Array<{ label: string; value: string }>;
+    aliases: string[];
+    sheet: Record<string, string>;
   }>,
 ) {
   await requireOwnedStory(db, input.storyId, userId);
   await assertRowBelongsToStory(db, characters, input.id, input.storyId);
-  const { id, storyId, ...fields } = input;
+  const { id, storyId, sheet, ...fields } = input;
   const [row] = await db
     .update(characters)
-    .set({ ...fields, updatedAt: new Date() })
+    .set({ ...fields, ...(sheet ? { sheet: cleanSheet(sheet) } : {}), updatedAt: new Date() })
     .where(eq(characters.id, id))
     .returning();
   return row;
@@ -106,6 +132,7 @@ export async function deleteCharacter(db: Database, userId: string, id: string, 
   await requireOwnedStory(db, storyId, userId);
   await assertRowBelongsToStory(db, characters, id, storyId);
   await db.delete(characters).where(eq(characters.id, id));
+  await deleteMediaForEntity(db, "character", id);
   return { ok: true };
 }
 
@@ -119,10 +146,14 @@ export async function createLocation(
     atmosphere?: string | null;
     history?: string | null;
     notes?: string | null;
+    sheet?: Record<string, string>;
   },
 ) {
   await requireOwnedStory(db, input.storyId, userId);
-  const [row] = await db.insert(locations).values(input).returning();
+  const [row] = await db
+    .insert(locations)
+    .values({ ...input, sheet: cleanSheet(input.sheet) })
+    .returning();
   return row;
 }
 
@@ -135,14 +166,15 @@ export async function updateLocation(
     atmosphere: string | null;
     history: string | null;
     notes: string | null;
+    sheet: Record<string, string>;
   }>,
 ) {
   await requireOwnedStory(db, input.storyId, userId);
   await assertRowBelongsToStory(db, locations, input.id, input.storyId);
-  const { id, storyId, ...fields } = input;
+  const { id, storyId, sheet, ...fields } = input;
   const [row] = await db
     .update(locations)
-    .set({ ...fields, updatedAt: new Date() })
+    .set({ ...fields, ...(sheet ? { sheet: cleanSheet(sheet) } : {}), updatedAt: new Date() })
     .where(eq(locations.id, id))
     .returning();
   return row;
@@ -152,6 +184,7 @@ export async function deleteLocation(db: Database, userId: string, id: string, s
   await requireOwnedStory(db, storyId, userId);
   await assertRowBelongsToStory(db, locations, id, storyId);
   await db.delete(locations).where(eq(locations.id, id));
+  await deleteMediaForEntity(db, "location", id);
   return { ok: true };
 }
 
@@ -165,6 +198,7 @@ export async function createPlot(
     stakes?: string | null;
     status?: "planned" | "active" | "resolved" | "abandoned";
     resolution?: string | null;
+    kind?: "main" | "secondary";
   },
 ) {
   await requireOwnedStory(db, input.storyId, userId);
@@ -181,6 +215,7 @@ export async function updatePlot(
     stakes: string | null;
     status: "planned" | "active" | "resolved" | "abandoned";
     resolution: string | null;
+    kind: "main" | "secondary";
   }>,
 ) {
   await requireOwnedStory(db, input.storyId, userId);
@@ -212,6 +247,7 @@ export async function createEvent(
     narrativeOrder?: number;
     chapterId?: string | null;
     consequences?: string | null;
+    certainty?: "confirmed" | "hypothesis" | "idea";
   },
 ) {
   await requireOwnedStory(db, input.storyId, userId);
@@ -229,6 +265,7 @@ export async function updateEvent(
     narrativeOrder: number;
     chapterId: string | null;
     consequences: string | null;
+    certainty: "confirmed" | "hypothesis" | "idea";
   }>,
 ) {
   await requireOwnedStory(db, input.storyId, userId);

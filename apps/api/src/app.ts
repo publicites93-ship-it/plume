@@ -13,6 +13,7 @@ import { registerLegalRoutes } from "./routes/legal";
 import { registerAuthPages } from "./routes/authPages";
 import { registerCoverRoutes } from "./routes/covers";
 import { registerBillingRoutes } from "./routes/billing";
+import { registerStudioMediaRoutes } from "./routes/studioMedia";
 
 export interface BuildAppOptions {
   db?: Database;
@@ -129,6 +130,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
   await registerAuthPages(app, db);
   await registerCoverRoutes(app, db);
   await registerBillingRoutes(app, db);
+  await registerStudioMediaRoutes(app, db);
 
   app.setErrorHandler((error: unknown, _request, reply) => {
     const normalized = error as { message?: string; code?: string };
