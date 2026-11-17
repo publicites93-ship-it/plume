@@ -23,16 +23,36 @@ Le conteneur :
 
 ## 2. Variables d'environnement
 
+Service en production : **`plume-api-qk9s`** (Render, image Docker). L'ancien service
+`plume-api` est suspendu et sa base ne sert plus.
+
 | Variable | Obligatoire | Valeur |
 | --- | --- | --- |
-| `NODE_ENV` | oui | `production` |
-| `DATABASE_URL` | oui en production | URL PostgreSQL durable (Neon, Railway, Supabase, VPS) |
-| `JWT_SECRET` | oui | `openssl rand -base64 48` (32 caractères minimum) |
-| `AI_PROVIDER` | non | `mock` (aucun appel payant) |
-| `CORS_ORIGINS` | non | origines web autorisées, séparées par des virgules |
-| `SEED_DEMO` | non | `true` pour créer les comptes de démonstration |
-| `PORT` | non | fourni par l'hébergeur |
-| `HOST` | non | `0.0.0.0` par défaut |
+| `NODE_ENV` | oui | `production` (déjà fixé dans l'image Docker) |
+| `DATABASE_URL` | oui | URL PostgreSQL durable (Neon) |
+| `JWT_SECRET` | oui | aléatoire, 32 caractères minimum ; sinon l'API refuse de démarrer |
+| `PUBLIC_APP_URL` | oui | `https://plume-api-qk9s.onrender.com` (liens des e-mails, retours Stripe) |
+| `AI_PROVIDER` | oui | `anthropic` (ou `gemini`, ou `mock` = simulation signalée) |
+| `CLAUDE_API_KEY` ou `ANTHROPIC_API_KEY` | si `anthropic` | clé Anthropic |
+| `ANTHROPIC_MODEL` / `ANTHROPIC_MODEL_FREE` | non | `claude-sonnet-5-5` (payants) / `claude-haiku-5-5` (Gratuit) |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | si `gemini` | clé Google AI Studio ; `gemini-3.8-flash` |
+| `EMAIL_PROVIDER` | oui | `brevo` (sans domaine) ou `resend` (avec domaine) |
+| `BREVO_API_KEY` / `RESEND_API_KEY` | selon le fournisseur | clé du fournisseur d'e-mails |
+| `EMAIL_FROM` | oui | `Plume <adresse vérifiée chez le fournisseur>` |
+| `REQUIRE_EMAIL_VERIFICATION` | non | `false` tant que la délivrabilité n'est pas validée |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PREMIUM` | pour les abonnements | les quatre ensemble ; sinon l'appli affiche « ouverture prochaine » |
+| `SEED_DEMO` | non | `false` en production |
+| `CORS_ORIGINS` | non | origines web autorisées (l'appli Android n'en a pas besoin) |
+| `PORT`, `HOST` | non | fournis par l'hébergeur |
+
+**Déploiement** : après chaque envoi sur GitHub, lancer **Manual Deploy → Deploy latest commit**
+et vérifier le numéro de commit dans le journal. Enregistrer une variable redéploie le commit
+*précédent*, pas le dernier. `/health` indique `ai`, `aiAvailable`, `email` et `billing`.
+
+**Formule offerte** (sans Shell Render) : dans l'éditeur SQL de Neon,
+`UPDATE users SET plan = 'premium', plan_expires_at = NULL WHERE email = lower('…');`
+(`premium` = Plume++, `plus` = Plume+), ou `npm run db:set-plan --workspace @plume/api -- <email> <plan> [jours]`
+depuis un poste ayant `DATABASE_URL`.
 
 Ne jamais committer `DATABASE_URL` ni `JWT_SECRET`.
 
