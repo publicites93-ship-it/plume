@@ -392,7 +392,7 @@ export default function SettingsScreen() {
           onChangeText={setNewPassword}
           secureTextEntry
           autoCapitalize="none"
-          hint="12 caractères minimum, avec majuscule, minuscule et chiffre."
+          hint="6 caractères minimum."
         />
         <Input
           label="Confirmer le nouveau mot de passe"

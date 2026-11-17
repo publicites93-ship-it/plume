@@ -16,16 +16,16 @@ function errorPage(title: string, message: string): string {
 function resetForm(token: string, error?: string): string {
   return htmlPage(
     "Choisir un nouveau mot de passe",
-    `<p>Votre nouveau mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule et un chiffre.</p>
+    `<p>Votre nouveau mot de passe doit contenir au moins 6 caractères.</p>
      ${error ? `<p class="notice">${htmlEscape(error)}</p>` : ""}
      <form method="post" action="/reinitialiser-mot-de-passe" style="display:grid;gap:14px;max-width:420px;margin-top:20px;">
        <input type="hidden" name="token" value="${htmlEscape(token)}" />
        <label style="display:grid;gap:6px;color:#cfc6b8;">Nouveau mot de passe
-         <input name="password" type="password" autocomplete="new-password" required minlength="12"
+         <input name="password" type="password" autocomplete="new-password" required minlength="6"
            style="background:#111a28;border:1px solid rgba(197,164,106,.45);border-radius:8px;padding:12px;color:#e9e1d2;font:inherit;" />
        </label>
        <label style="display:grid;gap:6px;color:#cfc6b8;">Confirmer le mot de passe
-         <input name="confirm" type="password" autocomplete="new-password" required minlength="12"
+         <input name="confirm" type="password" autocomplete="new-password" required minlength="6"
            style="background:#111a28;border:1px solid rgba(197,164,106,.45);border-radius:8px;padding:12px;color:#e9e1d2;font:inherit;" />
        </label>
        <button type="submit" style="background:#c5a46a;color:#0b111c;border:0;border-radius:8px;padding:13px 20px;font:inherit;font-weight:600;cursor:pointer;">

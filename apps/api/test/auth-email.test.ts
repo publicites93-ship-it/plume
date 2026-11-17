@@ -152,24 +152,24 @@ describe("réinitialisation du mot de passe", () => {
 });
 
 describe("politique de mot de passe", () => {
-  it("exige 12 caractères, une majuscule, une minuscule et un chiffre", async () => {
+  it("exige 6 caractères minimum, sans autre contrainte", async () => {
     const caller = publicCaller(context.db);
-    const base = {
-      email: `policy-${Date.now()}@plume.test`,
-      pseudonym: `Policy ${Date.now()}`,
-      acceptedTerms: true as const,
-    };
+    const stamp = Date.now();
     await expect(
-      caller.auth.signUp({ ...base, password: "Plume2026aa" }),
+      caller.auth.signUp({
+        email: `policy-short-${stamp}@plume.test`,
+        pseudonym: `Court ${stamp}`,
+        acceptedTerms: true,
+        password: "abcde",
+      }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(
-      caller.auth.signUp({ ...base, password: "plume2026aaaa" }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(
-      caller.auth.signUp({ ...base, password: "PLUME2026AAAA" }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(
-      caller.auth.signUp({ ...base, password: "PlumeSansChiffre" }),
-    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const ok = await caller.auth.signUp({
+      email: `policy-ok-${stamp}@plume.test`,
+      pseudonym: `Simple ${stamp}`,
+      acceptedTerms: true,
+      password: "abcdef",
+    });
+    // Inscription acceptée (ce fichier exige la vérification d'e-mail : pas de session immédiate).
+    expect(ok.verificationRequired).toBe(true);
   });
 });

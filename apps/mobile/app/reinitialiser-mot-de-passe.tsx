@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { PASSWORD_MIN_LENGTH } from "@plume/shared";
 import { AuthShell, Button, InlineNotice, Input } from "@/components";
 import { trpc } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
@@ -19,15 +20,8 @@ export default function ResetPasswordScreen() {
       setError("Ce lien ne contient pas de jeton de réinitialisation.");
       return;
     }
-    if (
-      password.length < 12 ||
-      !/[a-z]/.test(password) ||
-      !/[A-Z]/.test(password) ||
-      !/[0-9]/.test(password)
-    ) {
-      setError(
-        "Le mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule et un chiffre.",
-      );
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`);
       return;
     }
     if (password !== confirm) {
@@ -49,7 +43,7 @@ export default function ResetPasswordScreen() {
       subtitle={
         done
           ? "Toutes les autres sessions ont été déconnectées. Reconnectez-vous avec votre nouveau mot de passe."
-          : "Choisissez un mot de passe d'au moins 12 caractères, avec une majuscule, une minuscule et un chiffre."
+          : "Choisissez un mot de passe d'au moins 6 caractères."
       }
       footer={
         <Button
@@ -70,11 +64,11 @@ export default function ResetPasswordScreen() {
             required
             value={password}
             onChangeText={setPassword}
-            placeholder="Au moins 12 caractères"
+            placeholder="Au moins 6 caractères"
             secureTextEntry
             textContentType="newPassword"
             autoComplete="new-password"
-            hint="12 caractères minimum, avec une majuscule, une minuscule et un chiffre."
+            hint="6 caractères minimum."
           />
           <Input
             label="Confirmer le mot de passe"

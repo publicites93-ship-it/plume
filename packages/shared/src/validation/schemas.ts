@@ -12,30 +12,13 @@ export const emailSchema = z
   .email("Adresse e-mail invalide.")
   .transform((value) => value.toLowerCase());
 
+/** Règle produit : 6 caractères minimum, sans autre exigence de complexité. */
+export const PASSWORD_MIN_LENGTH = 6;
+
 export const passwordSchema = z
   .string()
-  .min(12, "Le mot de passe doit contenir au moins 12 caractères.")
-  .max(128, "Le mot de passe est trop long.")
-  .superRefine((value, ctx) => {
-    if (!/[a-z]/.test(value)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Le mot de passe doit contenir au moins une minuscule.",
-      });
-    }
-    if (!/[A-Z]/.test(value)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Le mot de passe doit contenir au moins une majuscule.",
-      });
-    }
-    if (!/[0-9]/.test(value)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Le mot de passe doit contenir au moins un chiffre.",
-      });
-    }
-  });
+  .min(PASSWORD_MIN_LENGTH, `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`)
+  .max(128, "Le mot de passe est trop long.");
 
 export const pseudonymSchema = z
   .string()

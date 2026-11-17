@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { spacing } from "@plume/shared";
+import { PASSWORD_MIN_LENGTH, spacing } from "@plume/shared";
 import {
   AuthShell,
   Button,
@@ -46,15 +46,8 @@ export default function SignUpScreen() {
       setError("Indiquez une adresse e-mail valide.");
       return;
     }
-    if (
-      password.length < 12 ||
-      !/[a-z]/.test(password) ||
-      !/[A-Z]/.test(password) ||
-      !/[0-9]/.test(password)
-    ) {
-      setError(
-        "Le mot de passe doit contenir au moins 12 caractères, une majuscule, une minuscule et un chiffre.",
-      );
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      setError(`Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`);
       return;
     }
     if (password !== confirm) {
@@ -142,11 +135,11 @@ export default function SignUpScreen() {
         required
         value={password}
         onChangeText={setPassword}
-        placeholder="Au moins 12 caractères"
+        placeholder="Au moins 6 caractères"
         secureTextEntry
         textContentType="newPassword"
         autoComplete="new-password"
-        hint="12 caractères minimum, avec une majuscule, une minuscule et un chiffre."
+        hint="6 caractères minimum."
       />
       <Input
         label="Confirmer le mot de passe"
