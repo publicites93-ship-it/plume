@@ -15,6 +15,7 @@ import {
   PageHeader,
   Screen,
   SectionHeader,
+  Segmented,
   Sheet,
   Text,
 } from "@/components";
@@ -31,6 +32,7 @@ export default function SettingsScreen() {
   const utils = trpc.useUtils();
   const me = trpc.auth.me.useQuery(undefined);
   const updatePreferences = trpc.auth.updatePreferences.useMutation();
+  const setGoal = trpc.auth.setGoal.useMutation();
   const changePassword = trpc.auth.changePassword.useMutation();
   const resendVerification = trpc.auth.resendVerification.useMutation();
   const exportData = trpc.auth.exportData.useMutation();
@@ -172,6 +174,31 @@ export default function SettingsScreen() {
         title="Réglages"
         subtitle="Confort de lecture, écriture et données personnelles."
       />
+
+      <SectionHeader title="Mon profil" eyebrow="Lire et écrire" />
+      <Card style={styles.card}>
+        <Segmented
+          options={[
+            { value: "read", label: "Lire" },
+            { value: "write", label: "Écrire" },
+            { value: "both", label: "Les deux" },
+          ]}
+          value={(me.data?.profile?.goal as "read" | "write" | "both" | null | undefined) ?? "both"}
+          onChange={async (goal) => {
+            try {
+              await setGoal.mutateAsync({ goal });
+              await queryClient.invalidateQueries();
+              toast("Profil mis à jour.", "success");
+            } catch (error) {
+              toast(errorMessage(error), "error");
+            }
+          }}
+        />
+        <Text variant="caption" color={theme.textMuted}>
+          Le Studio d'écriture (fiches, relations, chronologie) est réservé aux profils « Écrire »
+          et « Les deux ». Changer de profil ne supprime rien.
+        </Text>
+      </Card>
 
       <SectionHeader title="Taille du texte" eyebrow="Accessibilité" />
       <Card style={styles.card}>

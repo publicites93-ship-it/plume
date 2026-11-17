@@ -496,9 +496,9 @@ export default function StoryDashboardScreen() {
       <Card padded={false}>
         <View style={styles.toolsPad}>
           <ListRow
-            icon="git-branch-outline"
-            title="Bible narrative"
-            subtitle={`${data.bible.characters} personnages · ${data.bible.locations} lieux · ${data.bible.plots} intrigues`}
+            icon="library-outline"
+            title="Studio d'écriture"
+            subtitle={`${data.bible.characters} personnages · ${data.bible.locations} lieux · ${data.bible.plots} intrigues · relations, chronologie, carnet`}
             onPress={() => router.push({ pathname: "/bible/[id]", params: { id: storyId } })}
           />
           <ListRow

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { spacing } from "@plume/shared";
+import { EVENT_CERTAINTY, PLOT_KINDS, RELATION_KINDS, spacing } from "@plume/shared";
 import {
   Badge,
   Button,
@@ -16,25 +16,30 @@ import {
   PageHeader,
   Screen,
   SectionHeader,
-  Segmented,
   Sheet,
   Text,
 } from "@/components";
 import { trpc } from "@/lib/api";
-import { errorMessage } from "@/lib/errors";
+import { errorDetails, errorMessage } from "@/lib/errors";
+import { studioMediaSource } from "@/lib/covers";
 import { relativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { theme } from "@/theme";
 
-type SectionKey = "characters" | "locations" | "plots" | "events" | "ideas";
+type SectionKey = "characters" | "locations" | "relations" | "plots" | "events" | "ideas";
 
 const SECTION_OPTIONS: Array<{ value: SectionKey; label: string }> = [
   { value: "characters", label: "Personnages" },
   { value: "locations", label: "Lieux" },
+  { value: "relations", label: "Relations" },
   { value: "plots", label: "Intrigues" },
   { value: "events", label: "Chronologie" },
-  { value: "ideas", label: "Idées" },
+  { value: "ideas", label: "Carnet" },
 ];
+
+const RELATION_LABEL: Record<string, string> = Object.fromEntries(RELATION_KINDS.map((k) => [k.id, k.label]));
+const PLOT_KIND_LABEL: Record<string, string> = Object.fromEntries(PLOT_KINDS.map((k) => [k.id, k.label]));
+const CERTAINTY_LABEL: Record<string, string> = Object.fromEntries(EVENT_CERTAINTY.map((k) => [k.id, k.label]));
 
 const PLOT_STATUS: Record<string, string> = {
   planned: "Prévue",
@@ -64,8 +69,16 @@ const EMPTY_FIELDS: Record<SectionKey, Record<string, string>> = {
     notes: "",
   },
   locations: { name: "", description: "", atmosphere: "", history: "", notes: "" },
-  plots: { name: "", description: "", stakes: "", status: "planned", resolution: "" },
-  events: { title: "", description: "", fictionalDate: "", narrativeOrder: "0", consequences: "" },
+  relations: { fromCharacterId: "", toCharacterId: "", kind: "friend", description: "" },
+  plots: { name: "", description: "", stakes: "", status: "planned", resolution: "", kind: "secondary" },
+  events: {
+    title: "",
+    description: "",
+    fictionalDate: "",
+    narrativeOrder: "0",
+    consequences: "",
+    certainty: "confirmed",
+  },
   ideas: { content: "", kind: "note" },
 };
 
@@ -109,6 +122,15 @@ function fieldsFor(section: SectionKey, item: unknown): Record<string, string> {
       stakes: text(row.stakes),
       status: text(row.status) || "planned",
       resolution: text(row.resolution),
+      kind: text(row.kind) || "secondary",
+    };
+  }
+  if (section === "relations") {
+    return {
+      fromCharacterId: text(row.fromCharacterId),
+      toCharacterId: text(row.toCharacterId),
+      kind: text(row.kind) || "friend",
+      description: text(row.description),
     };
   }
   if (section === "events") {
@@ -118,6 +140,7 @@ function fieldsFor(section: SectionKey, item: unknown): Record<string, string> {
       fictionalDate: text(row.fictionalDate),
       narrativeOrder: text(row.narrativeOrder) || "0",
       consequences: text(row.consequences),
+      certainty: text(row.certainty) || "confirmed",
     };
   }
   return { content: text(row.content), kind: text(row.kind) || "note" };
@@ -158,6 +181,9 @@ export default function StoryBibleScreen() {
   const createIdea = trpc.narrative.createIdea.useMutation();
   const updateIdea = trpc.narrative.updateIdea.useMutation();
   const deleteIdea = trpc.narrative.deleteIdea.useMutation();
+  const createRelation = trpc.narrative.createRelation.useMutation();
+  const updateRelation = trpc.narrative.updateRelation.useMutation();
+  const deleteRelation = trpc.narrative.deleteRelation.useMutation();
 
   const saving =
     createCharacter.isPending ||
@@ -169,7 +195,9 @@ export default function StoryBibleScreen() {
     createEvent.isPending ||
     updateEvent.isPending ||
     createIdea.isPending ||
-    updateIdea.isPending;
+    updateIdea.isPending ||
+    createRelation.isPending ||
+    updateRelation.isPending;
 
   const data = narrative.data;
   const counts = dashboard.data?.bible;
@@ -180,6 +208,7 @@ export default function StoryBibleScreen() {
     if (section === "locations") return data.locations;
     if (section === "plots") return data.plots;
     if (section === "events") return data.events;
+    if (section === "relations") return data.relations;
     return data.ideas;
   }, [data, section]);
 
@@ -211,8 +240,24 @@ export default function StoryBibleScreen() {
 
   async function save() {
     setFormError(null);
+    if (section === "relations") {
+      if (!fields.fromCharacterId || !fields.toCharacterId) {
+        setFormError("Choisissez les deux personnages reliés.");
+        return;
+      }
+      if (fields.fromCharacterId === fields.toCharacterId) {
+        setFormError("Une relation relie deux personnages différents.");
+        return;
+      }
+    }
     const required =
-      section === "events" ? fields.title : section === "ideas" ? fields.content : fields.name;
+      section === "relations"
+        ? "ok"
+        : section === "events"
+          ? fields.title
+          : section === "ideas"
+            ? fields.content
+            : fields.name;
     if (!required?.trim()) {
       setFormError(
         section === "ideas"
@@ -262,6 +307,7 @@ export default function StoryBibleScreen() {
             | "resolved"
             | "abandoned",
           resolution: nullable(fields.resolution ?? ""),
+          kind: (fields.kind || "secondary") as "main" | "secondary",
         };
         if (editingId) {
           await updatePlot.mutateAsync({ id: editingId, storyId, ...payload });
@@ -275,11 +321,26 @@ export default function StoryBibleScreen() {
           fictionalDate: nullable(fields.fictionalDate ?? ""),
           narrativeOrder: Number.parseInt(fields.narrativeOrder || "0", 10) || 0,
           consequences: nullable(fields.consequences ?? ""),
+          certainty: (fields.certainty || "confirmed") as "confirmed" | "hypothesis" | "idea",
         };
         if (editingId) {
           await updateEvent.mutateAsync({ id: editingId, storyId, ...payload });
         } else {
           await createEvent.mutateAsync({ storyId, ...payload });
+        }
+      } else if (section === "relations") {
+        const kind = (fields.kind || "friend") as (typeof RELATION_KINDS)[number]["id"];
+        const description = nullable(fields.description ?? "");
+        if (editingId) {
+          await updateRelation.mutateAsync({ id: editingId, storyId, kind, description });
+        } else {
+          await createRelation.mutateAsync({
+            storyId,
+            fromCharacterId: fields.fromCharacterId!,
+            toCharacterId: fields.toCharacterId!,
+            kind,
+            description,
+          });
         }
       } else {
         const payload = {
@@ -300,7 +361,7 @@ export default function StoryBibleScreen() {
       }
       await refresh();
       setSheetOpen(false);
-      toast("Bible narrative mise à jour.", "success");
+      toast("Studio mis à jour.", "success");
     } catch (error) {
       setFormError(errorMessage(error));
     }
@@ -317,12 +378,14 @@ export default function StoryBibleScreen() {
         await deletePlot.mutateAsync({ id: deleteTarget.id, storyId });
       } else if (deleteTarget.section === "events") {
         await deleteEvent.mutateAsync({ id: deleteTarget.id, storyId });
+      } else if (deleteTarget.section === "relations") {
+        await deleteRelation.mutateAsync({ id: deleteTarget.id, storyId });
       } else if (deleteTarget.section === "ideas") {
         await deleteIdea.mutateAsync({ id: deleteTarget.id, storyId });
       }
       await refresh();
       setDeleteTarget(null);
-      toast("Élément retiré de la bible.", "success");
+      toast("Élément retiré du studio.", "success");
     } catch (error) {
       toast(errorMessage(error), "error");
     }
@@ -331,7 +394,25 @@ export default function StoryBibleScreen() {
   if (dashboard.isLoading || narrative.isLoading) {
     return (
       <Screen scroll={false}>
-        <LoadingState label="Ouverture de la bible narrative…" />
+        <LoadingState label="Ouverture du studio…" />
+      </Screen>
+    );
+  }
+
+  if (narrative.isError && errorDetails(narrative.error)?.code === "STUDIO_PROFILE_REQUIRED") {
+    return (
+      <Screen>
+        <PageHeader back eyebrow="Studio d'écriture" title="Réservé aux auteurs" />
+        <InlineNotice tone="info" title="Votre profil est « Lire »">
+          Le Studio d'écriture est réservé aux profils « Écrire » et « Écrire et lire ». Vous pouvez
+          changer de profil à tout moment dans les réglages ; vos lectures ne sont pas touchées.
+        </InlineNotice>
+        <Button
+          label="Changer de profil"
+          icon="settings-outline"
+          onPress={() => router.push("/reglages")}
+          style={styles.backButton}
+        />
       </Screen>
     );
   }
@@ -339,7 +420,7 @@ export default function StoryBibleScreen() {
   if (dashboard.isError || narrative.isError || !dashboard.data || !data) {
     return (
       <Screen>
-        <PageHeader back title="Bible narrative" />
+        <PageHeader back title="Studio d'écriture" />
         <ErrorState
           message={errorMessage(dashboard.error ?? narrative.error)}
           onRetry={() => {
@@ -369,9 +450,9 @@ export default function StoryBibleScreen() {
     >
       <PageHeader
         back
-        eyebrow="Bible narrative"
+        eyebrow="Studio d'écriture"
         title={story.title}
-        subtitle="Personnages, lieux, intrigues, chronologie et idées : la mémoire privée de votre manuscrit."
+        subtitle="Personnages, lieux, relations, intrigues, chronologie et carnet : la mémoire privée de votre manuscrit."
         right={<Button label="Ajouter" icon="add" size="sm" onPress={openCreate} />}
       />
 
@@ -385,20 +466,43 @@ export default function StoryBibleScreen() {
           </Text>
         </View>
         <Text variant="caption" color={theme.textMuted}>
-          Le coach peut s'appuyer sur ces notes, mais il ne les invente pas et ne les modifie pas.
+          Tout reste privé, même quand l'histoire est publiée. Vous gardez la main sur chaque
+          information : rien n'est modifié sans vous.
         </Text>
       </Card>
 
-      <View style={styles.segmentedWrap}>
-        <Segmented
-          options={SECTION_OPTIONS}
-          value={section}
-          onChange={(value) => {
-            setSection(value);
-            setEditingId(null);
-          }}
-        />
-      </View>
+      <Card style={styles.museCard}>
+        <View style={styles.introRow}>
+          <Ionicons name="sparkles-outline" size={20} color={theme.goldBright} />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">Muse et analyse automatique</Text>
+            <Text variant="caption" color={theme.textMuted}>
+              Bientôt : Plume repérera personnages, lieux et événements dans vos chapitres, avec la
+              citation à l'appui, et Muse proposera des pistes. Pour l'instant, le studio se remplit
+              à la main.
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.sectionTabs}
+        style={styles.segmentedWrap}
+      >
+        {SECTION_OPTIONS.map((option) => (
+          <Chip
+            key={option.value}
+            label={option.label}
+            selected={section === option.value}
+            onPress={() => {
+              setSection(option.value);
+              setEditingId(null);
+            }}
+          />
+        ))}
+      </ScrollView>
 
       <SectionHeader
         title={SECTION_OPTIONS.find((option) => option.value === section)?.label ?? "Bible"}
@@ -417,6 +521,10 @@ export default function StoryBibleScreen() {
                 ? "Un personnage peut commencer par un désir et une peur. Le reste viendra en écrivant."
                 : section === "locations"
                   ? "Décrivez un lieu par ce qu'il fait ressentir et par le détail que votre personnage remarquerait."
+                  : section === "relations"
+                    ? (data.characters.length < 2
+                        ? "Ajoutez au moins deux personnages pour les relier."
+                        : "Une relation dit ce qui lie deux personnages : famille, amitié, rivalité…")
                   : section === "plots"
                     ? "Une intrigue se définit par ce qui peut être perdu et par la décision qu'elle exige."
                     : section === "events"
@@ -432,11 +540,47 @@ export default function StoryBibleScreen() {
           {items.map((item) => {
             const row = item as Record<string, unknown>;
             const idValue = text(row.id);
+            const characterName = (characterId: unknown) =>
+              data.characters.find((character) => character.id === characterId)?.name ?? "Personnage";
             const titleValue =
-              section === "events" ? text(row.title) : section === "ideas" ? text(row.content) : text(row.name);
+              section === "relations"
+                ? `${characterName(row.fromCharacterId)} ↔ ${characterName(row.toCharacterId)}`
+                : section === "events"
+                  ? text(row.title)
+                  : section === "ideas"
+                    ? text(row.content)
+                    : text(row.name);
+            const entityType = section === "characters" ? "character" : section === "locations" ? "location" : null;
+            const portrait = entityType
+              ? data.media.find((media) => media.entityType === entityType && media.entityId === idValue)
+              : undefined;
             return (
               <Card key={idValue} style={styles.itemCard}>
                 <View style={styles.itemTop}>
+                  {entityType ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ouvrir la fiche de ${titleValue}`}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/fiche/[id]",
+                          params: { id: idValue, type: entityType, storyId },
+                        })
+                      }
+                    >
+                      {portrait ? (
+                        <Image source={studioMediaSource(portrait.id)} style={styles.thumb} />
+                      ) : (
+                        <View style={[styles.thumb, styles.thumbEmpty]}>
+                          <Ionicons
+                            name={entityType === "character" ? "person-outline" : "location-outline"}
+                            size={20}
+                            color={theme.gold}
+                          />
+                        </View>
+                      )}
+                    </Pressable>
+                  ) : null}
                   <View style={styles.flex}>
                     <Text variant="bodyStrong" numberOfLines={3}>
                       {titleValue}
@@ -448,6 +592,19 @@ export default function StoryBibleScreen() {
                   <View style={styles.itemBadges}>
                     {section === "characters" && row.role ? (
                       <Badge tone="bordeaux">{text(row.role)}</Badge>
+                    ) : null}
+                    {section === "relations" ? (
+                      <Badge tone="bordeaux">{RELATION_LABEL[text(row.kind)] ?? text(row.kind)}</Badge>
+                    ) : null}
+                    {section === "plots" ? (
+                      <Badge tone={row.kind === "main" ? "bordeaux" : "muted"}>
+                        {row.kind === "main" ? "Principale" : "Secondaire"}
+                      </Badge>
+                    ) : null}
+                    {section === "events" ? (
+                      <Badge tone={row.certainty === "confirmed" ? "success" : "muted"}>
+                        {CERTAINTY_LABEL[text(row.certainty)] ?? "Confirmé"}
+                      </Badge>
                     ) : null}
                     {section === "plots" ? (
                       <Badge tone={row.status === "resolved" ? "success" : "gold"}>
@@ -535,6 +692,12 @@ export default function StoryBibleScreen() {
                   </View>
                 ) : null}
 
+                {section === "relations" && row.description ? (
+                  <Text variant="caption" color={theme.textSecondary}>
+                    {text(row.description)}
+                  </Text>
+                ) : null}
+
                 {section === "ideas" ? (
                   <Text variant="caption" color={theme.textMuted}>
                     Note privée · {relativeTime(row.createdAt as string | Date)}
@@ -542,8 +705,21 @@ export default function StoryBibleScreen() {
                 ) : null}
 
                 <View style={styles.itemActions}>
+                  {entityType ? (
+                    <Button
+                      label="Fiche complète"
+                      icon="reader-outline"
+                      size="sm"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/fiche/[id]",
+                          params: { id: idValue, type: entityType, storyId },
+                        })
+                      }
+                    />
+                  ) : null}
                   <Button
-                    label="Modifier"
+                    label={entityType ? "Rapide" : "Modifier"}
                     icon="pencil-outline"
                     size="sm"
                     variant="secondary"
@@ -632,6 +808,21 @@ export default function StoryBibleScreen() {
                 ))}
               </View>
             </View>
+            <View style={styles.fieldGroup}>
+              <Text variant="label" color={theme.textSecondary}>
+                Type
+              </Text>
+              <View style={styles.chips}>
+                {PLOT_KINDS.map((kind) => (
+                  <Chip
+                    key={kind.id}
+                    label={PLOT_KIND_LABEL[kind.id] ?? kind.label}
+                    selected={(fields.kind || "secondary") === kind.id}
+                    onPress={() => setField("kind", kind.id)}
+                  />
+                ))}
+              </View>
+            </View>
             <Input label="Résolution" value={fields.resolution ?? ""} onChangeText={(v) => setField("resolution", v)} multiline maxLength={2000} />
           </>
         ) : null}
@@ -643,6 +834,66 @@ export default function StoryBibleScreen() {
             <Input label="Date fictive" value={fields.fictionalDate ?? ""} onChangeText={(v) => setField("fictionalDate", v)} maxLength={80} placeholder="Troisième lune, hiver 1842…" />
             <Input label="Ordre narratif" value={fields.narrativeOrder ?? "0"} onChangeText={(v) => setField("narrativeOrder", v)} keyboardType="number-pad" hint="Un nombre plus petit apparaît plus tôt dans la chronologie." />
             <Input label="Conséquences" value={fields.consequences ?? ""} onChangeText={(v) => setField("consequences", v)} multiline maxLength={2000} />
+            <View style={styles.fieldGroup}>
+              <Text variant="label" color={theme.textSecondary}>
+                Certitude
+              </Text>
+              <View style={styles.chips}>
+                {EVENT_CERTAINTY.map((item) => (
+                  <Chip
+                    key={item.id}
+                    label={item.label}
+                    selected={(fields.certainty || "confirmed") === item.id}
+                    onPress={() => setField("certainty", item.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null}
+
+        {section === "relations" ? (
+          <>
+            {(["fromCharacterId", "toCharacterId"] as const).map((key, index) => (
+              <View key={key} style={styles.fieldGroup}>
+                <Text variant="label" color={theme.textSecondary}>
+                  {index === 0 ? "Premier personnage" : "Second personnage"}
+                </Text>
+                <View style={styles.chips}>
+                  {data.characters.map((character) => (
+                    <Chip
+                      key={character.id}
+                      label={character.name}
+                      selected={fields[key] === character.id}
+                      onPress={() => (editingId ? undefined : setField(key, character.id))}
+                    />
+                  ))}
+                </View>
+              </View>
+            ))}
+            <View style={styles.fieldGroup}>
+              <Text variant="label" color={theme.textSecondary}>
+                Nature du lien
+              </Text>
+              <View style={styles.chips}>
+                {RELATION_KINDS.map((kind) => (
+                  <Chip
+                    key={kind.id}
+                    label={kind.label}
+                    selected={(fields.kind || "friend") === kind.id}
+                    onPress={() => setField("kind", kind.id)}
+                  />
+                ))}
+              </View>
+            </View>
+            <Input
+              label="Description"
+              value={fields.description ?? ""}
+              onChangeText={(v) => setField("description", v)}
+              multiline
+              maxLength={2000}
+              placeholder="Ce qui les unit, ce qui les oppose…"
+            />
           </>
         ) : null}
 
@@ -684,7 +935,7 @@ export default function StoryBibleScreen() {
         }
       >
         <InlineNotice tone="danger">
-          L'entrée sera retirée de la bible narrative. Les chapitres déjà écrits ne sont pas modifiés.
+          L'entrée sera retirée du studio. Les chapitres déjà écrits ne sont pas modifiés.
         </InlineNotice>
       </Sheet>
 
@@ -711,6 +962,25 @@ const styles = StyleSheet.create({
   },
   segmentedWrap: {
     marginTop: spacing[5],
+    flexGrow: 0,
+  },
+  sectionTabs: {
+    gap: 7,
+    paddingRight: spacing[4],
+  },
+  museCard: {
+    marginTop: spacing[3],
+  },
+  thumb: {
+    width: 48,
+    height: 64,
+    borderRadius: 8,
+  },
+  thumbEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(197,164,106,0.3)",
   },
   list: {
     gap: spacing[3],

@@ -18,12 +18,33 @@ export function coverImageSource(coverAssetUrl?: string | null): ImageURISource 
 
 export type PickedCover = { base64: string; previewUri: string } | null;
 
+/** Image privée du studio (portrait, lieu) : toujours servie avec le jeton de l'auteur. */
+export function studioMediaSource(mediaId: string): ImageURISource {
+  const token = getAccessToken();
+  const uri = `${API_ORIGIN}/studio-media/${mediaId}`;
+  return token ? { uri, headers: { Authorization: `Bearer ${token}` } } : { uri };
+}
+
+/** Portrait ou image de lieu : format 3:4, réduit à 600 × 800 px (bien sous 300 Ko). */
+export async function pickStudioImage(): Promise<PickedCover> {
+  return pickImage([3, 4], 600, 800, 0.75);
+}
+
 /**
  * Ouvre le sélecteur de photos du système (aucune permission requise sur
  * Android récent), recadre au format livre 2:3, puis réduit l'image à
  * 600 × 900 px en JPEG pour un envoi léger.
  */
 export async function pickCoverImage(): Promise<PickedCover> {
+  return pickImage([2, 3], 600, 900, 0.8);
+}
+
+async function pickImage(
+  aspect: [number, number],
+  width: number,
+  height: number,
+  compress: number,
+): Promise<PickedCover> {
   // Modules natifs chargés à la demande (et non au démarrage de l'appli, car
   // Cover est affiché partout) : en cas de souci natif, seul ce bouton échoue.
   const ImagePicker = require("expo-image-picker") as typeof import("expo-image-picker");
@@ -31,7 +52,7 @@ export async function pickCoverImage(): Promise<PickedCover> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsEditing: true,
-    aspect: [2, 3],
+    aspect,
     quality: 1,
   });
   if (result.canceled || !result.assets[0]) return null;
@@ -39,11 +60,11 @@ export async function pickCoverImage(): Promise<PickedCover> {
     maxWidth: 1800,
     maxHeight: 2700,
   });
-  context.resize({ width: 600, height: 900 });
+  context.resize({ width, height });
   const rendered = await context.renderAsync();
   const saved = await rendered.saveAsync({
     format: ImageManipulator.SaveFormat.JPEG,
-    compress: 0.8,
+    compress,
     base64: true,
   });
   if (!saved.base64) return null;
