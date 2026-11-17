@@ -114,6 +114,7 @@ export default function HomeScreen() {
             <Cover
               title={currentStory.title}
               motif={(currentStory.coverMotif as CoverMotif) ?? "arch"}
+              imageUrl={currentStory.coverAssetUrl}
               width={104}
               height={156}
               label={currentStory.genre ?? undefined}

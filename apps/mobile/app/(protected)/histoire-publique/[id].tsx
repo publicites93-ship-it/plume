@@ -131,6 +131,7 @@ export default function PublicStoryScreen() {
           <Cover
             title={story.title}
             motif={(story.coverMotif as CoverMotif) ?? "arch"}
+            imageUrl={story.coverAssetUrl}
             width={118}
             height={176}
             label={story.genre ?? undefined}

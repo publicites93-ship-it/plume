@@ -982,6 +982,7 @@ export async function authorProfile(db: Database, authorId: string, viewerId?: s
       synopsis: stories.synopsis,
       genre: stories.genre,
       coverMotif: stories.coverMotif,
+      coverAssetUrl: stories.coverAssetUrl,
       updatedAt: stories.updatedAt,
       status: stories.status,
     })

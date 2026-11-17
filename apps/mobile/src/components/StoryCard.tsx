@@ -19,6 +19,7 @@ export interface StoryCardData {
   status?: string | null;
   visibility?: string | null;
   coverMotif?: string | null;
+  coverAssetUrl?: string | null;
   subtitle?: string | null;
 }
 
@@ -45,6 +46,7 @@ export function StoryRowCard({
         <Cover
           title={story.title}
           motif={toMotif(story.coverMotif)}
+          imageUrl={story.coverAssetUrl}
           width={compact ? 76 : 92}
           height={compact ? 114 : 138}
           label={story.authorName ?? story.genre ?? undefined}
@@ -128,6 +130,7 @@ export function StoryTile({
       <Cover
         title={story.title}
         motif={toMotif(story.coverMotif)}
+          imageUrl={story.coverAssetUrl}
         width={width}
         height={width * 1.45}
         label={story.authorName ?? undefined}

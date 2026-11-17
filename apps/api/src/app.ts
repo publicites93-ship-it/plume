@@ -10,6 +10,7 @@ import { createContext } from "./trpc/trpc";
 import { appRouter } from "./trpc/router";
 import { registerLegalRoutes } from "./routes/legal";
 import { registerAuthPages } from "./routes/authPages";
+import { registerCoverRoutes } from "./routes/covers";
 
 export interface BuildAppOptions {
   db?: Database;
@@ -123,6 +124,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<BuiltApp>
 
   await registerLegalRoutes(app);
   await registerAuthPages(app, db);
+  await registerCoverRoutes(app, db);
 
   app.setErrorHandler((error: unknown, _request, reply) => {
     const normalized = error as { message?: string; code?: string };

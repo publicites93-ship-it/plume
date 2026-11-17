@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { removeStoryCover, setStoryCover } from "../../services/covers";
 import {
   createChapterSchema,
   createStorySchema,
@@ -122,4 +123,18 @@ export const storyRouter = router({
     .mutation(async ({ ctx, input }) =>
       reorderChapters(ctx.db, ctx.userId, input.storyId, input.chapterIds),
     ),
+
+  setCover: protectedProcedure
+    .input(
+      z.object({
+        storyId: z.string().uuid(),
+        // ~600 Ko d'image une fois décodée ; la vérification fine est faite par le service.
+        imageBase64: z.string().min(100).max(850_000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => setStoryCover(ctx.db, ctx.userId, input)),
+
+  removeCover: protectedProcedure
+    .input(z.object({ storyId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => removeStoryCover(ctx.db, ctx.userId, input.storyId)),
 });

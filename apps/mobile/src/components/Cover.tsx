@@ -1,5 +1,6 @@
-import { useId } from "react";
-import { StyleSheet, View } from "react-native";
+import { useId, useState } from "react";
+import { Image, StyleSheet, View } from "react-native";
+import { coverImageSource } from "@/lib/covers";
 import Svg, {
   Circle,
   Defs,
@@ -142,6 +143,7 @@ export function Cover({
   height = 162,
   label,
   compact = false,
+  imageUrl,
 }: {
   title: string;
   motif?: CoverMotif;
@@ -149,8 +151,35 @@ export function Cover({
   height?: number;
   label?: string;
   compact?: boolean;
+  /** Couverture personnalisée (chemin /covers/… ou URI locale d'aperçu). */
+  imageUrl?: string | null;
 }) {
+  // Les hooks restent avant tout retour anticipé (ordre stable entre rendus).
   const rawId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const source =
+    imageUrl && imageUrl !== failedUrl
+      ? imageUrl.startsWith("file:")
+        ? { uri: imageUrl }
+        : coverImageSource(imageUrl)
+      : null;
+  if (source) {
+    return (
+      <View
+        style={[styles.frame, { width, height, borderColor: "rgba(197,164,106,0.4)" }]}
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Couverture de ${title}`}
+      >
+        <Image
+          source={source}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          onError={() => setFailedUrl(imageUrl ?? null)}
+        />
+      </View>
+    );
+  }
   const gradientId = `cover-${rawId}`;
   const [top, bottom, accent] = palettes[hashCode(title) % palettes.length]!;
   const titleSize = Math.max(9, Math.min(15, width / 9));

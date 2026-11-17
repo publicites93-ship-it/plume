@@ -391,6 +391,20 @@ export const reactions = pgTable(
   (table) => [uniqueIndex("reactions_unique").on(table.commentId, table.userId, table.kind)],
 );
 
+/**
+ * Image de couverture personnalisée, stockée en base : le disque des hébergeurs
+ * comme Render est éphémère. Taille limitée côté serveur (voir services/covers.ts).
+ */
+export const storyCovers = pgTable("story_covers", {
+  storyId: uuid("story_id")
+    .primaryKey()
+    .references(() => stories.id, { onDelete: "cascade" }),
+  mimeType: text("mime_type").notNull(),
+  data: text("data").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const storyReactions = pgTable(
   "story_reactions",
   {

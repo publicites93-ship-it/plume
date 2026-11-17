@@ -30,6 +30,7 @@ import { errorMessage } from "@/lib/errors";
 import { shareTextFile } from "@/lib/export";
 import { formatDate, formatNumber, relativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
+import { pickCoverImage } from "@/lib/covers";
 import { palette, theme } from "@/theme";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -66,6 +67,10 @@ export default function StoryDashboardScreen() {
   const [status, setStatus] = useState("draft");
   const [visibility, setVisibility] = useState("private");
   const [chapterTitle, setChapterTitle] = useState("");
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const setCover = trpc.stories.setCover.useMutation();
+  const removeCover = trpc.stories.removeCover.useMutation();
 
   const updateStory = trpc.stories.update.useMutation();
   const deleteStory = trpc.stories.delete.useMutation();
@@ -245,6 +250,33 @@ export default function StoryDashboardScreen() {
 
   const nextChapter = chapters.find((chapter) => chapter.status === "draft") ?? chapters[0];
 
+  async function chooseCover() {
+    try {
+      const picked = await pickCoverImage();
+      if (!picked) return;
+      setCoverPreview(picked.previewUri);
+      await setCover.mutateAsync({ storyId, imageBase64: picked.base64 });
+      await Promise.all([dashboard.refetch(), queryClient.invalidateQueries()]);
+      setCoverOpen(false);
+      toast("Couverture enregistrée.", "success");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    } finally {
+      setCoverPreview(null);
+    }
+  }
+
+  async function resetCover() {
+    try {
+      await removeCover.mutateAsync({ storyId });
+      await Promise.all([dashboard.refetch(), queryClient.invalidateQueries()]);
+      setCoverOpen(false);
+      toast("Couverture par défaut rétablie.", "success");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    }
+  }
+
   return (
     <Screen refreshing={dashboard.isRefetching} onRefresh={() => void dashboard.refetch()}>
       <PageHeader
@@ -259,13 +291,23 @@ export default function StoryDashboardScreen() {
 
       <Card accent style={styles.hero}>
         <View style={styles.heroTop}>
-          <Cover
-            title={story.title}
-            motif={(story.coverMotif as CoverMotif) ?? "arch"}
-            width={104}
-            height={156}
-            label={story.genre ?? undefined}
-          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Changer la couverture"
+            onPress={() => setCoverOpen(true)}
+          >
+            <Cover
+              title={story.title}
+              motif={(story.coverMotif as CoverMotif) ?? "arch"}
+              width={104}
+              height={156}
+              label={story.genre ?? undefined}
+              imageUrl={coverPreview ?? story.coverAssetUrl}
+            />
+            <View style={styles.coverBadge}>
+              <Ionicons name="image-outline" size={13} color={palette.nightDeep} />
+            </View>
+          </Pressable>
           <View style={styles.heroBody}>
             <View style={styles.badgeRow}>
               <Badge
@@ -511,6 +553,34 @@ export default function StoryDashboardScreen() {
       </Card>
 
       <Sheet
+        visible={coverOpen}
+        onClose={() => setCoverOpen(false)}
+        title="Couverture"
+        subtitle="Choisissez une image dans vos photos. Elle sera recadrée au format livre (2:3) et allégée avant l'envoi."
+      >
+        <View style={styles.coverSheet}>
+          <Button
+            label="Choisir une photo"
+            icon="images-outline"
+            loading={setCover.isPending}
+            onPress={() => void chooseCover()}
+          />
+          {story.coverAssetUrl ? (
+            <Button
+              label="Revenir à la couverture par défaut"
+              icon="refresh-outline"
+              variant="secondary"
+              loading={removeCover.isPending}
+              onPress={() => void resetCover()}
+            />
+          ) : null}
+          <Text variant="caption" color={theme.textMuted}>
+            Tant que l'histoire est privée, la couverture n'est visible que par vous.
+          </Text>
+        </View>
+      </Sheet>
+
+      <Sheet
         visible={editOpen}
         onClose={() => setEditOpen(false)}
         title="Fiche du manuscrit"
@@ -687,6 +757,20 @@ function ChapterAction({
 }
 
 const styles = StyleSheet.create({
+  coverBadge: {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: palette.gold,
+  },
+  coverSheet: {
+    gap: spacing[3],
+  },
   flex: { flex: 1 },
   hero: {
     gap: spacing[4],
