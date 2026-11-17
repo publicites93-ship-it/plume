@@ -10,7 +10,14 @@ export interface ConflictDetails {
   baseVersion: number;
 }
 
+/** Réponse non JSON (page HTML d'un hébergeur, service suspendu, proxy…). */
+const UNEXPECTED_RESPONSE =
+  /JSON Parse error|Unexpected token|Unexpected character|is not valid JSON|Unable to transform response/i;
+
 export function errorMessage(error: unknown): string {
+  if (error instanceof Error && UNEXPECTED_RESPONSE.test(error.message)) {
+    return "Le serveur a renvoyé une réponse inattendue. Vérifiez que l'application est à jour, puis réessayez dans un instant.";
+  }
   if (error instanceof TRPCClientError) {
     if (error.message && error.message !== "Failed to fetch") return error.message;
     if (error.message === "Failed to fetch") {

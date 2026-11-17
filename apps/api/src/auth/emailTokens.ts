@@ -108,6 +108,7 @@ export function emailVerificationRequired(): boolean {
 export function emailDeliveryConfigured(): boolean {
   const config = getConfig();
   if (config.EMAIL_PROVIDER === "resend") return Boolean(config.RESEND_API_KEY);
+  if (config.EMAIL_PROVIDER === "brevo") return Boolean(config.BREVO_API_KEY);
   if (config.EMAIL_PROVIDER === "test") return true;
   // Le transport console écrit dans un fichier local : utilisable en
   // développement, jamais pour un envoi réel en production.
