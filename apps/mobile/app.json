@@ -58,6 +58,13 @@
           "photosPermission": "Plume accède à vos photos uniquement pour choisir la couverture d'une histoire.",
           "cameraPermission": false,
           "microphonePermission": false,
+          "colors": {
+            "cropToolbarColor": "#0B111C",
+            "cropToolbarIconColor": "#E9D8B4",
+            "cropToolbarActionTextColor": "#E9D8B4",
+            "cropBackButtonIconColor": "#E9D8B4",
+            "cropBackgroundColor": "#0B111C"
+          },
           "dark": {
             "colors": {
               "cropToolbarColor": "#0B111C",
