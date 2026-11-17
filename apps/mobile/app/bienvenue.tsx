@@ -1,4 +1,4 @@
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -66,118 +66,125 @@ export default function WelcomeScreen() {
           />
         ))}
       </View>
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <View style={styles.hero}>
-          <Svg width={168} height={212} viewBox="0 0 168 212" style={styles.arch}>
-            <Path
-              d="M20 204 L20 88 C20 52 48 26 84 10 C120 26 148 52 148 88 L148 204"
-              stroke={palette.gold}
-              strokeWidth={1.1}
-              fill="none"
-              opacity={0.7}
-            />
-            <Path
-              d="M34 204 L34 90 C34 61 57 38 84 24 C111 38 134 61 134 90 L134 204"
-              stroke={palette.gold}
-              strokeWidth={0.5}
-              fill="none"
-              opacity={0.4}
-            />
-            <Line x1={10} y1={204} x2={158} y2={204} stroke={palette.gold} strokeWidth={1} opacity={0.6} />
-            <Path
-              d="M70 122 C76 100 92 82 112 74 C103 92 94 110 78 126 C75 130 71 128 70 122 Z"
-              stroke={palette.goldBright}
-              strokeWidth={1}
-              fill="none"
-              opacity={0.9}
-            />
-            <Line x1={64} y1={136} x2={79} y2={123} stroke={palette.goldBright} strokeWidth={1} opacity={0.9} />
-            <Circle cx={84} cy={58} r={2.2} fill={palette.goldBright} opacity={0.9} />
-            <Circle cx={56} cy={88} r={1.2} fill={palette.gold} opacity={0.6} />
-            <Circle cx={114} cy={96} r={1.4} fill={palette.gold} opacity={0.55} />
-          </Svg>
-
-          <Text variant="label" color={theme.gold} style={styles.kicker} fixed>
-            Bibliothèque & atelier d'écriture
-          </Text>
-          <Text variant="display" color={palette.parchment} style={styles.wordmark} fixed>
-            PLUME
-          </Text>
-          <View style={styles.rule}>
-            <View style={styles.ruleLine} />
-            <View style={styles.ruleDiamond} />
-            <View style={styles.ruleLine} />
-          </View>
-          <Text variant="quote" color={theme.textSecondary} align="center" style={styles.tagline}>
-            Les histoires ne s'écrivent pas à votre place.{"\n"}Elles apprennent à vous reconnaître.
-          </Text>
-        </View>
-
-        <View style={styles.features}>
-          {features.map((feature) => (
-            <View key={feature.title} style={styles.feature}>
-              <View style={styles.featureIcon}>
-                <Ionicons name={feature.icon} size={17} color={theme.goldBright} />
-              </View>
-              <View style={styles.featureText}>
-                <Text variant="bodyStrong" color={palette.parchment}>
-                  {feature.title}
-                </Text>
-                <Text variant="caption" color={theme.textMuted}>
-                  {feature.body}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.actions}>
-          {session ? (
-            <Button
-              label="Reprendre la lecture"
-              icon="arrow-forward"
-              size="lg"
-              fullWidth
-              onPress={() => router.replace("/")}
-            />
-          ) : (
-            <>
-              <Button
-                label="Entrer dans la bibliothèque"
-                icon="key-outline"
-                size="lg"
-                fullWidth
-                onPress={() => router.push("/connexion")}
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        {/* Défilable : avec un texte système agrandi, les boutons restent atteignables. */}
+        <ScrollView
+          contentContainerStyle={styles.safe}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.hero}>
+            <Svg width={168} height={212} viewBox="0 0 168 212" style={styles.arch}>
+              <Path
+                d="M20 204 L20 88 C20 52 48 26 84 10 C120 26 148 52 148 88 L148 204"
+                stroke={palette.gold}
+                strokeWidth={1.1}
+                fill="none"
+                opacity={0.7}
               />
-              <Button
-                label="Créer mon atelier"
-                variant="secondary"
-                size="lg"
-                fullWidth
-                onPress={() => router.push("/inscription")}
+              <Path
+                d="M34 204 L34 90 C34 61 57 38 84 24 C111 38 134 61 134 90 L134 204"
+                stroke={palette.gold}
+                strokeWidth={0.5}
+                fill="none"
+                opacity={0.4}
               />
-            </>
-          )}
+              <Line x1={10} y1={204} x2={158} y2={204} stroke={palette.gold} strokeWidth={1} opacity={0.6} />
+              <Path
+                d="M70 122 C76 100 92 82 112 74 C103 92 94 110 78 126 C75 130 71 128 70 122 Z"
+                stroke={palette.goldBright}
+                strokeWidth={1}
+                fill="none"
+                opacity={0.9}
+              />
+              <Line x1={64} y1={136} x2={79} y2={123} stroke={palette.goldBright} strokeWidth={1} opacity={0.9} />
+              <Circle cx={84} cy={58} r={2.2} fill={palette.goldBright} opacity={0.9} />
+              <Circle cx={56} cy={88} r={1.2} fill={palette.gold} opacity={0.6} />
+              <Circle cx={114} cy={96} r={1.4} fill={palette.gold} opacity={0.55} />
+            </Svg>
 
-        </View>
-
-        <View style={styles.legal}>
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="Politique de confidentialité et conditions d'utilisation"
-            onPress={() => void Linking.openURL(legalUrl)}
-            style={({ pressed }) => [styles.legalLink, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="shield-checkmark-outline" size={13} color={theme.textMuted} />
-            <Text variant="caption" color={theme.textMuted} align="center">
-              Confidentialité et conditions d'utilisation
+            <Text variant="label" color={theme.gold} style={styles.kicker} fixed>
+              Bibliothèque & atelier d'écriture
             </Text>
-          </Pressable>
-          <Text variant="caption" color={theme.textMuted} align="center" style={styles.legalText}>
-            Vos manuscrits privés restent accessibles à vous seul. Rien n'est publié sans votre
-            geste.
-          </Text>
-        </View>
+            <Text variant="display" color={palette.parchment} style={styles.wordmark} fixed>
+              PLUME
+            </Text>
+            <View style={styles.rule}>
+              <View style={styles.ruleLine} />
+              <View style={styles.ruleDiamond} />
+              <View style={styles.ruleLine} />
+            </View>
+            <Text variant="quote" color={theme.textSecondary} align="center" style={styles.tagline}>
+              Les histoires ne s'écrivent pas à votre place.{"\n"}Elles apprennent à vous reconnaître.
+            </Text>
+          </View>
+
+          <View style={styles.features}>
+            {features.map((feature) => (
+              <View key={feature.title} style={styles.feature}>
+                <View style={styles.featureIcon}>
+                  <Ionicons name={feature.icon} size={17} color={theme.goldBright} />
+                </View>
+                <View style={styles.featureText}>
+                  <Text variant="bodyStrong" color={palette.parchment}>
+                    {feature.title}
+                  </Text>
+                  <Text variant="caption" color={theme.textMuted}>
+                    {feature.body}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.actions}>
+            {session ? (
+              <Button
+                label="Reprendre la lecture"
+                icon="arrow-forward"
+                size="lg"
+                fullWidth
+                onPress={() => router.replace("/")}
+              />
+            ) : (
+              <>
+                <Button
+                  label="Entrer dans la bibliothèque"
+                  icon="key-outline"
+                  size="lg"
+                  fullWidth
+                  onPress={() => router.push("/connexion")}
+                />
+                <Button
+                  label="Créer mon atelier"
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  onPress={() => router.push("/inscription")}
+                />
+              </>
+            )}
+
+          </View>
+
+          <View style={styles.legal}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Politique de confidentialité et conditions d'utilisation"
+              onPress={() => void Linking.openURL(legalUrl)}
+              style={({ pressed }) => [styles.legalLink, pressed && { opacity: 0.7 }]}
+            >
+              <Ionicons name="shield-checkmark-outline" size={13} color={theme.textMuted} />
+              <Text variant="caption" color={theme.textMuted} align="center">
+                Confidentialité et conditions d'utilisation
+              </Text>
+            </Pressable>
+            <Text variant="caption" color={theme.textMuted} align="center" style={styles.legalText}>
+              Vos manuscrits privés restent accessibles à vous seul. Rien n'est publié sans votre
+              geste.
+            </Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -191,8 +198,11 @@ const styles = StyleSheet.create({
   stars: {
     position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
   },
-  safe: {
+  safeArea: {
     flex: 1,
+  },
+  safe: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     justifyContent: "space-between",
   },

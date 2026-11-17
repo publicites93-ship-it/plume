@@ -5,6 +5,7 @@ import { spacing } from "@plume/shared";
 import {
   AuthShell,
   Button,
+  Checkbox,
   InlineNotice,
   Input,
   Text,
@@ -17,8 +18,12 @@ import { theme } from "@/theme";
 export default function SignInScreen() {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
+  const setRemember = useAuthStore((state) => state.setRemember);
+  const rememberedEmail = useAuthStore((state) => state.rememberedEmail);
   const signIn = trpc.auth.signIn.useMutation();
-  const [email, setEmail] = useState("");
+  // Option décochée par défaut ; cochée d'office si elle avait déjà été choisie.
+  const [email, setEmail] = useState(rememberedEmail ?? "");
+  const [remember, setRememberChecked] = useState(Boolean(rememberedEmail));
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
@@ -46,6 +51,8 @@ export default function SignInScreen() {
     }
     try {
       const result = await signIn.mutateAsync({ email: email.trim(), password });
+      // Le choix est enregistré avant la session, pour décider où la garder.
+      await setRemember(remember, email.trim());
       await setSession(result.tokens);
       await queryClient.invalidateQueries();
       router.replace("/");
@@ -114,6 +121,13 @@ export default function SignInScreen() {
         autoComplete="current-password"
         returnKeyType="go"
         onSubmitEditing={submit}
+      />
+
+      <Checkbox
+        checked={remember}
+        onToggle={() => setRememberChecked((value) => !value)}
+        label="Se souvenir de moi (e-mail pré-rempli et session gardée 30 jours sur ce téléphone)"
+        accessibilityLabel="Se souvenir de moi"
       />
 
       <Pressable
