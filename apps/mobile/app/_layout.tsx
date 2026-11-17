@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
+import { Pressable, ScrollView, Text as RNText, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -28,6 +29,40 @@ import { ToastHost } from "@/components";
 import { palette } from "@/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+/**
+ * Écran de secours : une erreur d'affichage n'entraîne plus la fermeture de
+ * l'appli. Composants React Native de base uniquement (indépendants du thème
+ * et du design system, qui pourraient être la cause de l'erreur).
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
+  return (
+    <View style={{ flex: 1, backgroundColor: "#0B111C", paddingTop: 64, paddingHorizontal: 24 }}>
+      <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 48 }}>
+        <RNText style={{ color: "#E9D8B4", fontSize: 22, fontWeight: "600" }}>
+          Plume a rencontré un problème
+        </RNText>
+        <RNText style={{ color: "#C3B7A4", fontSize: 15, lineHeight: 22 }}>
+          Vos manuscrits ne sont pas touchés. Faites une capture de cet écran pour le support, puis
+          réessayez.
+        </RNText>
+        <RNText selectable style={{ color: "#938A7C", fontSize: 13, fontFamily: "monospace" }}>
+          {error.name}: {error.message}
+        </RNText>
+        <Pressable
+          accessibilityRole="button"
+          onPress={retry}
+          style={{ backgroundColor: "#C5A46A", borderRadius: 10, padding: 14, alignItems: "center" }}
+        >
+          <RNText style={{ color: "#1A1409", fontWeight: "600" }}>Réessayer</RNText>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const [trpcClient] = useState(() => createTrpcClient());

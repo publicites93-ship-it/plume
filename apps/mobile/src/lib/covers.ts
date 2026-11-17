@@ -1,5 +1,3 @@
-import * as ImageManipulator from "expo-image-manipulator";
-import * as ImagePicker from "expo-image-picker";
 import type { ImageURISource } from "react-native";
 import { API_URL } from "./api";
 import { getAccessToken } from "./auth";
@@ -26,6 +24,10 @@ export type PickedCover = { base64: string; previewUri: string } | null;
  * 600 × 900 px en JPEG pour un envoi léger.
  */
 export async function pickCoverImage(): Promise<PickedCover> {
+  // Modules natifs chargés à la demande (et non au démarrage de l'appli, car
+  // Cover est affiché partout) : en cas de souci natif, seul ce bouton échoue.
+  const ImagePicker = require("expo-image-picker") as typeof import("expo-image-picker");
+  const ImageManipulator = require("expo-image-manipulator") as typeof import("expo-image-manipulator");
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsEditing: true,

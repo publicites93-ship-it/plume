@@ -1,4 +1,3 @@
-import * as WebBrowser from "expo-web-browser";
 import { queryClient } from "./api";
 
 /**
@@ -8,6 +7,8 @@ import { queryClient } from "./api";
  * de Stripe (webhook) peut arriver quelques secondes après le paiement.
  */
 export async function openStripePage(url: string): Promise<void> {
+  // Chargé à la demande : un module natif absent ne peut pas empêcher l'appli de démarrer.
+  const WebBrowser = require("expo-web-browser") as typeof import("expo-web-browser");
   await WebBrowser.openAuthSessionAsync(url, "plume://paiement");
   refreshPlanSoon();
 }
