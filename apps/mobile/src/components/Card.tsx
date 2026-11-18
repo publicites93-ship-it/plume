@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { radii, spacing } from "@plume/shared";
-import { palette, theme } from "@/theme";
+import { palette, theme, withAlpha } from "@/theme";
 
 interface CardProps {
   children: ReactNode;
@@ -50,7 +50,7 @@ export function Card({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(28,40,59,0.92)",
+    backgroundColor: withAlpha(theme.surface, 0.92),
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: theme.border,
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     padding: spacing[5],
   },
   elevated: {
-    backgroundColor: palette.ink,
+    backgroundColor: theme.surfaceRaised,
     borderColor: theme.borderStrong,
     shadowColor: "#000",
     shadowOpacity: 0.35,

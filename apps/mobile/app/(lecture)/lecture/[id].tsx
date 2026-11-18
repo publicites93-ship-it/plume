@@ -104,7 +104,7 @@ export default function ReaderScreen() {
 
   if (chapterQuery.isLoading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: palette.nightDeep }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.backgroundDeep }}>
         <LoadingState label="Ouverture du chapitre…" />
       </SafeAreaView>
     );
@@ -112,7 +112,7 @@ export default function ReaderScreen() {
 
   if (chapterQuery.isError || !chapter) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: palette.nightDeep }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.backgroundDeep }}>
         <View style={styles.errorHeader}>
           <IconButton icon="chevron-back" label="Retour" tone="plain" onPress={() => router.back()} />
         </View>
@@ -334,7 +334,7 @@ export default function ReaderScreen() {
                 <Text
                   variant="caption"
                   color={
-                    Math.abs(fontScale - option) < 0.01 ? palette.nightDeep : theme.textSecondary
+                    Math.abs(fontScale - option) < 0.01 ? theme.textOnGold : theme.textSecondary
                   }
                 >
                   {Math.round(option * 100)} %

@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
-    backgroundColor: palette.ink,
+    backgroundColor: theme.surfaceRaised,
     borderWidth: 1,
     borderRadius: radii.md,
     paddingVertical: 12,

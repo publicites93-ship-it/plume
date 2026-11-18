@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as SplashScreen from "expo-splash-screen";
+import * as SystemUI from "expo-system-ui";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_600SemiBold,
@@ -26,7 +27,7 @@ import { createTrpcClient, queryClient, trpc, wakeServer } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import { useUiStore } from "@/lib/ui";
 import { ToastHost } from "@/components";
-import { palette } from "@/theme";
+import { isDarkTheme, palette, theme } from "@/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -83,6 +84,8 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    // Fond natif (sous les écrans, pendant les transitions) aligné sur le thème choisi.
+    void SystemUI.setBackgroundColorAsync(theme.backgroundDeep).catch(() => undefined);
     void hydrateAuth();
     void hydrateUi();
     // Réveille l'API Render sans bloquer l'affichage. Les requêtes suivantes
@@ -101,15 +104,15 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.nightDeep }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.backgroundDeep }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <trpc.Provider client={trpcClient} queryClient={queryClient}>
-            <StatusBar style="light" />
+            <StatusBar style={isDarkTheme ? "light" : "dark"} />
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: palette.nightDeep },
+                contentStyle: { backgroundColor: theme.backgroundDeep },
                 animation: "fade",
               }}
             >

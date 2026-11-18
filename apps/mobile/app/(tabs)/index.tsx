@@ -29,7 +29,7 @@ import {
 } from "@/components";
 import { trpc } from "@/lib/api";
 import { formatNumber, greeting, relativeTime } from "@/lib/format";
-import { palette, theme } from "@/theme";
+import { palette, theme, withAlpha } from "@/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -333,7 +333,7 @@ export default function HomeScreen() {
             {prompt.minutes} min
           </Text>
         </View>
-        <Text variant="literary" color={palette.parchment} style={styles.promptText}>
+        <Text variant="literary" color={theme.textPrimary} style={styles.promptText}>
           {prompt.text}
         </Text>
         <Button
@@ -432,7 +432,7 @@ function QuickAction({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   heroCard: {
-    backgroundColor: "rgba(36,52,75,0.55)",
+    backgroundColor: withAlpha(theme.surfaceRaised, 0.55),
     overflow: "hidden",
   },
   heroGlow: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.28)",
-    backgroundColor: "rgba(28,40,59,0.8)",
+    backgroundColor: withAlpha(theme.surface, 0.8),
   },
   summaryRow: {
     flexDirection: "row",

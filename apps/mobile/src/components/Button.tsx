@@ -63,7 +63,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === "primary" ? palette.nightDeep : theme.gold}
+          color={variant === "primary" ? theme.textOnGold : theme.gold}
         />
       ) : (
         <View style={styles.content}>
@@ -71,14 +71,14 @@ export function Button({
             <Ionicons
               name={icon}
               size={size === "sm" ? 16 : 18}
-              color={variant === "primary" ? palette.nightDeep : variant === "danger" ? theme.danger : theme.gold}
+              color={variant === "primary" ? theme.textOnGold : variant === "danger" ? theme.danger : theme.gold}
             />
           ) : null}
           <Text
             variant={size === "sm" ? "caption" : "bodyStrong"}
             color={
               variant === "primary"
-                ? palette.nightDeep
+                ? theme.textOnGold
                 : variant === "danger"
                   ? theme.danger
                   : theme.goldBright
@@ -91,7 +91,7 @@ export function Button({
             <Ionicons
               name={iconRight}
               size={size === "sm" ? 16 : 18}
-              color={variant === "primary" ? palette.nightDeep : theme.gold}
+              color={variant === "primary" ? theme.textOnGold : theme.gold}
             />
           ) : null}
         </View>

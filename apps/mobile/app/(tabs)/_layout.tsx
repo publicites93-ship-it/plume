@@ -3,14 +3,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LoadingState } from "@/components";
 import { PlumeTabBar } from "@/components/PlumeTabBar";
 import { useSessionGate } from "@/lib/session";
-import { palette } from "@/theme";
+import { palette, theme } from "@/theme";
 
 export default function TabsLayout() {
   const { loading, session } = useSessionGate();
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: palette.nightDeep }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.backgroundDeep }}>
         <LoadingState label="Ouverture de la bibliothèque…" />
       </SafeAreaView>
     );
@@ -24,7 +24,7 @@ export default function TabsLayout() {
       backBehavior="history"
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: palette.nightDeep },
+        sceneStyle: { backgroundColor: theme.backgroundDeep },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Accueil" }} />

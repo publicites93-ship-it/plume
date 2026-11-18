@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { radii, spacing, touchTarget, typography } from "@plume/shared";
 import { Text } from "./Text";
 import { IconButton } from "./Button";
-import { palette, theme } from "@/theme";
+import { isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 export function PageHeader({
   eyebrow,
@@ -108,7 +108,11 @@ export function Badge({
     muted: { bg: "rgba(147,138,124,0.1)", border: "rgba(147,138,124,0.3)", text: theme.textSecondary },
     success: { bg: "rgba(143,175,139,0.12)", border: "rgba(143,175,139,0.4)", text: theme.success },
     danger: { bg: "rgba(199,124,124,0.12)", border: "rgba(199,124,124,0.4)", text: theme.danger },
-    bordeaux: { bg: "rgba(103,58,73,0.35)", border: "rgba(184,135,145,0.45)", text: "#D8AAB2" },
+    bordeaux: {
+      bg: isDarkTheme ? "rgba(103,58,73,0.35)" : "rgba(103,58,73,0.10)",
+      border: "rgba(184,135,145,0.45)",
+      text: isDarkTheme ? "#D8AAB2" : "#7A3A4A",
+    },
     info: { bg: "rgba(143,163,192,0.12)", border: "rgba(143,163,192,0.4)", text: theme.info },
   } as const;
   const color = colors[tone];
@@ -146,9 +150,9 @@ export function Chip({
       ]}
     >
       {icon ? (
-        <Ionicons name={icon} size={13} color={selected ? palette.nightDeep : theme.textSecondary} />
+        <Ionicons name={icon} size={13} color={selected ? theme.textOnGold : theme.textSecondary} />
       ) : null}
-      <Text variant="caption" color={selected ? palette.nightDeep : theme.textSecondary}>
+      <Text variant="caption" color={selected ? theme.textOnGold : theme.textSecondary}>
         {label}
       </Text>
     </Pressable>
@@ -337,7 +341,7 @@ export function Segmented<T extends string,>({
           >
             <Text
               variant="caption"
-              color={selected ? palette.nightDeep : theme.textSecondary}
+              color={selected ? theme.textOnGold : theme.textSecondary}
               numberOfLines={1}
             >
               {option.label}
@@ -425,7 +429,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.24)",
-    backgroundColor: "rgba(28,40,59,0.7)",
+    backgroundColor: withAlpha(theme.surface, 0.7),
   },
   chipSelected: {
     backgroundColor: palette.gold,
@@ -497,7 +501,7 @@ const styles = StyleSheet.create({
   },
   segmented: {
     flexDirection: "row",
-    backgroundColor: "rgba(11,17,28,0.6)",
+    backgroundColor: withAlpha(theme.backgroundDeep, isDarkTheme ? 0.6 : 0.6),
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.22)",

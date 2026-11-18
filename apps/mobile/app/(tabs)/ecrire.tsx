@@ -26,7 +26,7 @@ import { errorMessage } from "@/lib/errors";
 import { formatNumber } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { openStripePage } from "@/lib/billing";
-import { palette, theme } from "@/theme";
+import { isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 export default function WriteScreen() {
   const router = useRouter();
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.2)",
-    backgroundColor: "rgba(11,17,28,0.4)",
+    backgroundColor: withAlpha(theme.backgroundDeep, isDarkTheme ? 0.4 : 0.6),
     minHeight: 62,
     justifyContent: "center",
   },

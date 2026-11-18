@@ -10,7 +10,7 @@ import { queryClient, trpc } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import { errorMessage } from "@/lib/errors";
 import { toast } from "@/lib/toast";
-import { palette, theme } from "@/theme";
+import { gradients, isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 const goals = [
   {
@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={["#0B111C", "#101827", "#162133"]}
+        colors={[gradients.night[0], gradients.night[1], gradients.night[2]]}
         style={StyleSheet.absoluteFill}
       />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -317,7 +317,7 @@ function OptionCard({
         <Ionicons
           name={icon}
           size={19}
-          color={selected ? palette.nightDeep : theme.gold}
+          color={selected ? theme.textOnGold : theme.gold}
         />
       </View>
       <View style={styles.optionText}>
@@ -353,7 +353,7 @@ function NotificationRow({
         value={value}
         onValueChange={onChange}
         trackColor={{ false: "rgba(147,138,124,0.3)", true: "rgba(197,164,106,0.55)" }}
-        thumbColor={value ? palette.goldBright : palette.parchmentDeep}
+        thumbColor={value ? palette.goldBright : theme.textMuted}
         accessibilityLabel={label}
       />
     </View>
@@ -361,8 +361,8 @@ function NotificationRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.nightDeep },
-  loading: { flex: 1, backgroundColor: palette.nightDeep },
+  root: { flex: 1, backgroundColor: theme.backgroundDeep },
+  loading: { flex: 1, backgroundColor: theme.backgroundDeep },
   safe: { flex: 1 },
   header: {
     flexDirection: "row",
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.2)",
-    backgroundColor: "rgba(28,40,59,0.7)",
+    backgroundColor: withAlpha(theme.surface, 0.7),
     minHeight: 78,
   },
   optionSelected: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.18)",
-    backgroundColor: "rgba(28,40,59,0.55)",
+    backgroundColor: withAlpha(theme.surface, 0.55),
   },
   notificationRow: {
     flexDirection: "row",
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[2],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(197,164,106,0.18)",
-    backgroundColor: "rgba(11,17,28,0.92)",
+    backgroundColor: withAlpha(theme.backgroundDeep, 0.92),
   },
   backButton: { flex: 1 },
   nextButton: { flex: 1.7 },

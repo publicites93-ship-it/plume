@@ -47,7 +47,7 @@ import { formatDate, formatNumber, relativeTime } from "@/lib/format";
 import { createMutationId } from "@/lib/id";
 import { useNetworkStatus } from "@/lib/network";
 import { toast } from "@/lib/toast";
-import { palette, theme } from "@/theme";
+import { isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "offline" | "conflict";
 
@@ -704,8 +704,8 @@ export default function ChapterEditorScreen() {
               onPress={() => void persist("manual", { forceSnapshot: true })}
               style={styles.saveButton}
             >
-              <Ionicons name="checkmark" size={17} color={palette.nightDeep} />
-              <Text variant="caption" color={palette.nightDeep}>
+              <Ionicons name="checkmark" size={17} color={theme.textOnGold} />
+              <Text variant="caption" color={theme.textOnGold}>
                 Enregistrer
               </Text>
             </Pressable>
@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(197,164,106,0.22)",
-    backgroundColor: "rgba(11,17,28,0.96)",
+    backgroundColor: withAlpha(theme.backgroundDeep, 0.96),
   },
   toolbarRule: {
     width: StyleSheet.hairlineWidth,

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { palette, theme } from "@/theme";
+import { palette, theme, withAlpha } from "@/theme";
 
 interface ScreenProps {
   children: ReactNode;
@@ -33,7 +33,7 @@ export function Screen({
   refreshing,
   onRefresh,
   glow = true,
-  background = palette.nightDeep,
+  background = theme.backgroundDeep,
   keyboardShouldPersistTaps = "handled",
 }: ScreenProps) {
   const padding = padded ? styles.padded : undefined;
@@ -42,7 +42,7 @@ export function Screen({
       {glow ? (
         <LinearGradient
           pointerEvents="none"
-          colors={["rgba(36,52,75,0.55)", "rgba(16,24,39,0.0)"]}
+          colors={[withAlpha(theme.surfaceRaised, 0.55), withAlpha(theme.background, 0)]}
           style={styles.glow}
         />
       ) : null}
@@ -59,7 +59,7 @@ export function Screen({
                 onRefresh={onRefresh}
                 tintColor={theme.gold}
                 colors={[theme.gold]}
-                progressBackgroundColor={palette.slate}
+                progressBackgroundColor={theme.surface}
               />
             ) : undefined
           }

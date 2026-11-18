@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { radii, spacing, typography } from "@plume/shared";
 import { Text } from "./Text";
-import { palette, theme } from "@/theme";
+import { isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: "rgba(197,164,106,0.28)",
-    backgroundColor: "rgba(11,17,28,0.55)",
+    backgroundColor: withAlpha(theme.backgroundDeep, isDarkTheme ? 0.55 : 0.6),
     paddingHorizontal: spacing[4],
   },
   fieldError: {

@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: "90%",
-    backgroundColor: palette.nightSoft,
+    backgroundColor: theme.sheet,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     borderWidth: 1,

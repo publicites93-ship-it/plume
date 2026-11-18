@@ -2,14 +2,14 @@ import { Redirect, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LoadingState } from "@/components";
 import { useSessionGate } from "@/lib/session";
-import { palette } from "@/theme";
+import { palette, theme } from "@/theme";
 
 export default function ProtectedLayout() {
   const { loading, session } = useSessionGate();
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: palette.nightDeep }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.backgroundDeep }}>
         <LoadingState label="Ouverture du manuscrit…" />
       </SafeAreaView>
     );
@@ -21,7 +21,7 @@ export default function ProtectedLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: palette.nightDeep },
+        contentStyle: { backgroundColor: theme.backgroundDeep },
         animation: "slide_from_right",
       }}
     />

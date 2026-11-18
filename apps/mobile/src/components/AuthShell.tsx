@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { spacing, touchTarget } from "@plume/shared";
 import { Text } from "./Text";
-import { palette, theme } from "@/theme";
+import { gradients, palette, theme } from "@/theme";
 
 export function AuthShell({
   eyebrow,
@@ -34,7 +34,7 @@ export function AuthShell({
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={["#0B111C", "#101827", "#162133", "#0B111C"]}
+        colors={[gradients.night[0], gradients.night[1], gradients.night[2], gradients.night[0]]}
         locations={[0, 0.3, 0.7, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -114,7 +114,7 @@ export function Checkbox({
       style={styles.checkboxRow}
     >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Ionicons name="checkmark" size={15} color={palette.nightDeep} /> : null}
+        {checked ? <Ionicons name="checkmark" size={15} color={theme.textOnGold} /> : null}
       </View>
       <Text variant="caption" color={theme.textSecondary} style={styles.checkboxLabel}>
         {label}
@@ -126,7 +126,7 @@ export function Checkbox({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: palette.nightDeep,
+    backgroundColor: theme.backgroundDeep,
   },
   safe: {
     flex: 1,

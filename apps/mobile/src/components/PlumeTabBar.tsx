@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "expo-router/tabs";
 import { spacing } from "@plume/shared";
 import { Text } from "./Text";
-import { palette, theme } from "@/theme";
+import { isDarkTheme, palette, theme, withAlpha } from "@/theme";
 
 const tabs: Record<
   string,
@@ -75,7 +75,7 @@ export function PlumeTabBar({ state, descriptors, emitter, navigateToTab, insets
                 <Ionicons
                   name={focused ? config.active : config.icon}
                   size={21}
-                  color={focused ? palette.nightDeep : theme.textMuted}
+                  color={focused ? theme.textOnGold : theme.textMuted}
                 />
               </View>
               <Text
@@ -96,7 +96,7 @@ export function PlumeTabBar({ state, descriptors, emitter, navigateToTab, insets
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: "rgba(11,17,28,0.98)",
+    backgroundColor: withAlpha(theme.backgroundDeep, 0.98),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(197,164,106,0.22)",
     paddingTop: 6,

@@ -25,7 +25,7 @@ import { errorMessage } from "@/lib/errors";
 import { shareTextFile } from "@/lib/export";
 import { toast } from "@/lib/toast";
 import { useUiStore } from "@/lib/ui";
-import { getReadingTheme, palette, theme } from "@/theme";
+import { APP_THEME_OPTIONS, type AppThemeId, appThemeId, getReadingTheme, palette, setAppTheme, theme } from "@/theme";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -33,6 +33,7 @@ export default function SettingsScreen() {
   const me = trpc.auth.me.useQuery(undefined);
   const updatePreferences = trpc.auth.updatePreferences.useMutation();
   const setGoal = trpc.auth.setGoal.useMutation();
+  const [pendingTheme, setPendingTheme] = useState<AppThemeId | null>(null);
   const changePassword = trpc.auth.changePassword.useMutation();
   const resendVerification = trpc.auth.resendVerification.useMutation();
   const exportData = trpc.auth.exportData.useMutation();
@@ -200,6 +201,63 @@ export default function SettingsScreen() {
         </Text>
       </Card>
 
+      <SectionHeader title="Thème de l'application" eyebrow="Apparence" />
+      <Card style={styles.card}>
+        <View style={styles.appThemeRow}>
+          {APP_THEME_OPTIONS.map((option) => {
+            const selected = appThemeId === option.id;
+            return (
+              <Pressable
+                key={option.id}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Thème ${option.label}`}
+                onPress={() => {
+                  if (!selected) setPendingTheme(option.id);
+                }}
+                style={[
+                  styles.appThemeOption,
+                  { backgroundColor: option.background },
+                  selected && { borderColor: theme.gold, borderWidth: 2 },
+                ]}
+              >
+                <Text variant="bodyStrong" color={option.text}>
+                  Aa
+                </Text>
+                <Text variant="caption" color={option.text}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text variant="caption" color={theme.textMuted}>
+          S'applique à tous les écrans. L'ambiance de lecture des chapitres se règle à part, dans
+          le lecteur.
+        </Text>
+      </Card>
+
+      <Sheet
+        visible={Boolean(pendingTheme)}
+        onClose={() => setPendingTheme(null)}
+        title="Changer de thème ?"
+        subtitle="L'application va se relancer pour appliquer le thème partout. Vos textes sont enregistrés."
+        footer={
+          <Button
+            label="Appliquer et relancer"
+            icon="color-palette-outline"
+            onPress={() => {
+              if (pendingTheme) void setAppTheme(pendingTheme);
+            }}
+            fullWidth
+          />
+        }
+      >
+        <Text variant="caption" color={theme.textMuted}>
+          Thème choisi : {APP_THEME_OPTIONS.find((option) => option.id === pendingTheme)?.label}
+        </Text>
+      </Sheet>
+
       <SectionHeader title="Taille du texte" eyebrow="Accessibilité" />
       <Card style={styles.card}>
         <Text variant="caption" color={theme.textMuted}>
@@ -222,7 +280,7 @@ export default function SettingsScreen() {
               >
                 <Text
                   variant="caption"
-                  color={selected ? palette.nightDeep : theme.textSecondary}
+                  color={selected ? theme.textOnGold : theme.textSecondary}
                 >
                   {Math.round(option * 100)} %
                 </Text>
@@ -287,7 +345,7 @@ export default function SettingsScreen() {
               >
                 <Text
                   variant="caption"
-                  color={selected ? palette.nightDeep : theme.textSecondary}
+                  color={selected ? theme.textOnGold : theme.textSecondary}
                 >
                   {getReadingTheme(themeId).label}
                 </Text>
@@ -317,8 +375,8 @@ export default function SettingsScreen() {
                 setReduceMotion(value);
                 void syncPreference({ reduceMotion: value });
               }}
-              trackColor={{ false: palette.inkSoft, true: "rgba(197,164,106,0.55)" }}
-              thumbColor={reduceMotion ? palette.goldBright : palette.parchmentDeep}
+              trackColor={{ false: theme.surfaceSunken, true: "rgba(197,164,106,0.55)" }}
+              thumbColor={reduceMotion ? palette.goldBright : theme.textMuted}
               accessibilityLabel="Réduire les animations"
             />
           </View>
@@ -477,6 +535,19 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  appThemeRow: {
+    flexDirection: "row",
+    gap: spacing[3],
+  },
+  appThemeOption: {
+    flex: 1,
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: spacing[3],
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(197,164,106,0.3)",
+  },
   flex: { flex: 1 },
   card: {
     gap: spacing[3],

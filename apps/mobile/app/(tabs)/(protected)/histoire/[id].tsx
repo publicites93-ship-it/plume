@@ -305,7 +305,7 @@ export default function StoryDashboardScreen() {
               imageUrl={coverPreview ?? story.coverAssetUrl}
             />
             <View style={styles.coverBadge}>
-              <Ionicons name="image-outline" size={13} color={palette.nightDeep} />
+              <Ionicons name="image-outline" size={13} color={theme.textOnGold} />
             </View>
           </Pressable>
           <View style={styles.heroBody}>

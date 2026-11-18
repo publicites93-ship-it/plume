@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { Button, Text } from "@/components";
 import { useAuthStore } from "@/lib/auth";
-import { palette, theme } from "@/theme";
+import { gradients, palette, theme } from "@/theme";
 
 const features = [
   {
@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={["#0B111C", "#101827", "#162133", "#0B111C"]}
+        colors={[gradients.night[0], gradients.night[1], gradients.night[2], gradients.night[0]]}
         locations={[0, 0.35, 0.72, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -106,7 +106,7 @@ export default function WelcomeScreen() {
             <Text variant="label" color={theme.gold} style={styles.kicker} fixed>
               Bibliothèque & atelier d'écriture
             </Text>
-            <Text variant="display" color={palette.parchment} style={styles.wordmark} fixed>
+            <Text variant="display" color={theme.textPrimary} style={styles.wordmark} fixed>
               PLUME
             </Text>
             <View style={styles.rule}>
@@ -126,7 +126,7 @@ export default function WelcomeScreen() {
                   <Ionicons name={feature.icon} size={17} color={theme.goldBright} />
                 </View>
                 <View style={styles.featureText}>
-                  <Text variant="bodyStrong" color={palette.parchment}>
+                  <Text variant="bodyStrong" color={theme.textPrimary}>
                     {feature.title}
                   </Text>
                   <Text variant="caption" color={theme.textMuted}>
@@ -193,7 +193,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: palette.nightDeep,
+    backgroundColor: theme.backgroundDeep,
   },
   stars: {
     position: "absolute", top: 0, right: 0, bottom: 0, left: 0,

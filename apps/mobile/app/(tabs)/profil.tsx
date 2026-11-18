@@ -26,7 +26,7 @@ import { errorMessage } from "@/lib/errors";
 import { shareTextFile } from "@/lib/export";
 import { formatDate, formatNumber, planLabel } from "@/lib/format";
 import { toast } from "@/lib/toast";
-import { palette, theme } from "@/theme";
+import { palette, theme, withAlpha } from "@/theme";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   logoutCard: {
     marginTop: spacing[6],
-    backgroundColor: "rgba(28,40,59,0.5)",
+    backgroundColor: withAlpha(theme.surface, 0.5),
   },
   version: {
     marginTop: spacing[4],
