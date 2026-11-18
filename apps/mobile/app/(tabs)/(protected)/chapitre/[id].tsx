@@ -31,6 +31,7 @@ import {
   Sheet,
   Text,
 } from "@/components";
+import { StudioQuickPanel } from "@/components/StudioQuickPanel";
 import { queryClient, trpc } from "@/lib/api";
 import {
   clearLocalDraft,
@@ -82,6 +83,7 @@ export default function ChapterEditorScreen() {
   const [focusMode, setFocusMode] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [conflict, setConflict] = useState<ConflictDetails | null>(null);
   const [localDraftNotice, setLocalDraftNotice] = useState<{
     savedAt: string;
@@ -584,6 +586,12 @@ export default function ChapterEditorScreen() {
             </>
           ) : null}
           <IconButton
+            icon="library-outline"
+            label="Studio : personnages, lieux, notes"
+            tone="plain"
+            onPress={() => setStudioOpen(true)}
+          />
+          <IconButton
             icon={focusMode ? "contract-outline" : "expand-outline"}
             label={focusMode ? "Quitter le mode focus" : "Mode focus"}
             tone="plain"
@@ -878,6 +886,11 @@ export default function ChapterEditorScreen() {
           </>
         ) : null}
       </Sheet>
+      <StudioQuickPanel
+        visible={studioOpen}
+        onClose={() => setStudioOpen(false)}
+        storyId={chapter.storyId}
+      />
     </Screen>
   );
 }
