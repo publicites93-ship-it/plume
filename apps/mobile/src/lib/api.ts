@@ -24,6 +24,14 @@ export const SERVER_WAKE_MESSAGE =
   "Démarrage du serveur, cela peut prendre une minute…";
 
 const REQUEST_TIMEOUT_MS = 30_000;
+/** Les appels à l'IA (coach, studio) peuvent prendre plus de 30 s : on leur laisse 2 minutes. */
+const AI_REQUEST_TIMEOUT_MS = 120_000;
+
+function timeoutFor(input: RequestInfo | URL): number {
+  return /\/trpc\/[^?]*(ai\.|learning\.reviewExercise|studio\.)/.test(requestUrl(input))
+    ? AI_REQUEST_TIMEOUT_MS
+    : REQUEST_TIMEOUT_MS;
+}
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000, 30_000, 30_000];
 
 function requestUrl(input: RequestInfo | URL): string {
@@ -53,7 +61,7 @@ function delay(ms: number): Promise<void> {
 async function fetchWithTimeout(
   input: RequestInfo | URL,
   init?: RequestInit,
-  timeoutMs = REQUEST_TIMEOUT_MS,
+  timeoutMs = timeoutFor(input),
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

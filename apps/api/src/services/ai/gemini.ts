@@ -21,38 +21,68 @@ import {
   RELATION_KIND_IDS,
 } from "@plume/shared";
 
+/*
+ * Schémas tolérants sur la forme, stricts sur le fond : un texte trop long est
+ * raccourci, une liste trop longue tronquée, une valeur hors liste remplacée par
+ * sa valeur par défaut. Les citations restent vérifiées dans le texte par
+ * analysis.ts : cette tolérance n'autorise aucune invention.
+ */
+const clip = (max: number) => z.string().transform((value) => value.trim().slice(0, max));
+const optionalClip = (max: number) =>
+  z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value) => (value && value.trim() ? value.trim().slice(0, max) : null));
+const unit = z.coerce.number().catch(0.5).transform((value) => Math.min(1, Math.max(0, value)));
+const percent = z.coerce.number().catch(50).transform((value) => Math.min(100, Math.max(0, Math.round(value))));
+
+const SKILL_ALIASES = new Map<string, SkillId>(
+  SKILLS.flatMap((skill) => [
+    [normalizeKey(skill.id), skill.id] as [string, SkillId],
+    [normalizeKey(skill.name), skill.id] as [string, SkillId],
+  ]),
+);
+function normalizeKey(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z]/g, "");
+}
+
 const findingSchema = z.object({
-  kind: z.enum(["strength", "improvement", "question"]),
-  title: z.string().min(3).max(160),
-  observation: z.string().min(10).max(1200),
-  quote: z.string().max(600).nullable(),
-  explanation: z.string().min(20).max(2000),
-  impact: z.string().max(1200).nullable(),
-  priority: z.enum(["low", "medium", "high"]),
-  confidence: z.number().min(0).max(1),
-  recommendation: z.string().max(1600).nullable(),
-  exercise: z.string().max(300).nullable(),
+  kind: z.enum(["strength", "improvement", "question"]).catch("question"),
+  title: clip(160).pipe(z.string().min(1)),
+  observation: clip(1200).pipe(z.string().min(1)),
+  quote: optionalClip(600),
+  explanation: clip(2000).pipe(z.string().min(1)),
+  impact: optionalClip(1200),
+  priority: z.enum(["low", "medium", "high"]).catch("medium"),
+  confidence: unit,
+  recommendation: optionalClip(1600),
+  exercise: optionalClip(300),
 });
 
 const responseSchema = z.object({
-  summary: z.string().min(20).max(2000),
-  score: z.number().min(0).max(100),
-  confidence: z.number().min(0).max(1),
-  findings: z.array(findingSchema).min(3).max(8),
+  summary: clip(2000).pipe(z.string().min(1)),
+  score: percent,
+  confidence: unit,
+  findings: z.array(findingSchema).min(1).transform((list) => list.slice(0, 8)),
 });
 
 const storyResponseSchema = z.object({
   analyses: z
     .array(
       z.object({
-        skill: z.enum(SKILLS.map((skill) => skill.id) as [SkillId, ...SkillId[]]),
-        summary: z.string().min(20).max(1500),
-        score: z.number().min(0).max(100),
-        confidence: z.number().min(0).max(1),
-        findings: z.array(findingSchema).min(2).max(3),
+        skill: z
+          .string()
+          .transform((value) => SKILL_ALIASES.get(normalizeKey(value)) ?? null)
+          .pipe(z.enum(SKILLS.map((skill) => skill.id) as [SkillId, ...SkillId[]])),
+        summary: clip(1500).pipe(z.string().min(1)),
+        score: percent,
+        confidence: unit,
+        findings: z.array(findingSchema).min(1).transform((list) => list.slice(0, 3)),
       }),
     )
-    .length(7),
+    .min(1)
+    .transform((list) => list.slice(0, 7)),
 });
 
 const coachResponseSchema = z.object({

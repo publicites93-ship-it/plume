@@ -128,6 +128,48 @@ describe("fournisseur Claude", () => {
     expect(JSON.parse(String(secondInit.body)).model).toBe("claude-sonnet-5-5");
   });
 
+  it("accepte une analyse des 7 compétences imparfaite sur la forme (noms en clair, textes longs, constats en trop)", async () => {
+    const finding = (quote: string | null) => ({
+      kind: "observation-libre",
+      title: "Constat",
+      observation: "Une observation.",
+      quote,
+      explanation: "Une explication suffisante.",
+      impact: null,
+      priority: "urgent",
+      confidence: 1.4,
+      recommendation: null,
+      exercise: "x".repeat(900),
+    });
+    const names = ["Personnages", "Dialogues", "Tension", "Descriptions", "Rythme", "Structure", "Foreshadowing"];
+    const story = {
+      analyses: names.map((name) => ({
+        skill: name,
+        summary: "Résumé de la compétence.",
+        score: "62",
+        confidence: 0.5,
+        findings: [finding(realQuote), finding(fakeQuote), finding(null), finding(null)],
+      })),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ content: [{ type: "text", text: JSON.stringify(story) }], usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200 }),
+      ),
+    );
+    const { author, story: created, chapter } = await storyWithChapter();
+    const result = await author.caller.ai.analyzeStory({ storyId: created.id, chapterId: chapter.id });
+    expect(result.analyses).toHaveLength(7);
+    for (const created of result.analyses) {
+      const analysis = await author.caller.ai.get({ analysisId: created.id });
+      expect(analysis.findings.length).toBeLessThanOrEqual(3);
+      for (const f of analysis.findings) {
+        if (f.quote) expect(citationExists(f.quote, SAMPLE_TEXT)).toBe(true);
+        expect((f.exercise ?? "").length).toBeLessThanOrEqual(300);
+      }
+    }
+  });
+
   it("ne débite rien quand Claude refuse la requête", async () => {
     vi.stubGlobal(
       "fetch",
