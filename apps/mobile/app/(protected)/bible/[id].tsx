@@ -17,6 +17,7 @@ import {
   Screen,
   SectionHeader,
   Sheet,
+  StudioAnalysis,
   Text,
 } from "@/components";
 import { trpc } from "@/lib/api";
@@ -471,15 +472,24 @@ export default function StoryBibleScreen() {
         </Text>
       </Card>
 
+      <StudioAnalysis
+        storyId={storyId}
+        entityNames={
+          new Map<string, string>([
+            ...data.characters.map((item) => [item.id, item.name] as [string, string]),
+            ...data.locations.map((item) => [item.id, item.name] as [string, string]),
+          ])
+        }
+      />
+
       <Card style={styles.museCard}>
         <View style={styles.introRow}>
           <Ionicons name="sparkles-outline" size={20} color={theme.goldBright} />
           <View style={styles.flex}>
-            <Text variant="bodyStrong">Muse et analyse automatique</Text>
+            <Text variant="bodyStrong">Muse</Text>
             <Text variant="caption" color={theme.textMuted}>
-              Bientôt : Plume repérera personnages, lieux et événements dans vos chapitres, avec la
-              citation à l'appui, et Muse proposera des pistes. Pour l'instant, le studio se remplit
-              à la main.
+              Bientôt : des pistes et des questions pour débloquer une scène, à partir de vos fiches.
+              Muse proposera des idées, jamais un texte à votre place.
             </Text>
           </View>
         </View>
@@ -596,6 +606,11 @@ export default function StoryBibleScreen() {
                     {section === "relations" ? (
                       <Badge tone="bordeaux">{RELATION_LABEL[text(row.kind)] ?? text(row.kind)}</Badge>
                     ) : null}
+                    {row.origin === "ai" || row.origin === "extracted" ? (
+                      <Badge tone="info" icon="sparkles-outline">
+                        Repéré par l'IA
+                      </Badge>
+                    ) : null}
                     {section === "plots" ? (
                       <Badge tone={row.kind === "main" ? "bordeaux" : "muted"}>
                         {row.kind === "main" ? "Principale" : "Secondaire"}
@@ -695,6 +710,12 @@ export default function StoryBibleScreen() {
                 {section === "relations" && row.description ? (
                   <Text variant="caption" color={theme.textSecondary}>
                     {text(row.description)}
+                  </Text>
+                ) : null}
+
+                {(section === "relations" || section === "events") && row.sourceQuote ? (
+                  <Text variant="caption" color={theme.textMuted} style={styles.sourceQuote}>
+                    « {text(row.sourceQuote)} »
                   </Text>
                 ) : null}
 
@@ -967,6 +988,9 @@ const styles = StyleSheet.create({
   sectionTabs: {
     gap: 7,
     paddingRight: spacing[4],
+  },
+  sourceQuote: {
+    fontStyle: "italic",
   },
   museCard: {
     marginTop: spacing[3],

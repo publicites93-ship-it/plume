@@ -29,3 +29,4 @@ export {
 export { StoryRowCard, StoryTile, type StoryCardData } from "./StoryCard";
 export { Prose } from "./Prose";
 export { ChapterEndSocial, StoryCounters } from "./ReaderSocial";
+export { StudioAnalysis } from "./StudioAnalysis";

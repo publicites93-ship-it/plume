@@ -30,7 +30,12 @@ import { toast } from "@/lib/toast";
 import { theme } from "@/theme";
 
 type EntityType = "character" | "location";
-type Row = Record<string, unknown> & { id: string; name: string; sheet?: Record<string, string> };
+type Row = Record<string, unknown> & {
+  id: string;
+  name: string;
+  sheet?: Record<string, string>;
+  sources?: Record<string, { origin: string; chapterTitle?: string; quote?: string }>;
+};
 
 const KIND_LABEL = Object.fromEntries(RELATION_KINDS.map((kind) => [kind.id, kind.label]));
 
@@ -269,6 +274,13 @@ export default function StudioSheetScreen() {
                       <Text variant="body" color={theme.textSecondary}>
                         {valueOf(row, field.key, field.column)}
                       </Text>
+                      {row.sources?.[field.key]?.origin === "ai" ? (
+                        <Text variant="caption" color={theme.textMuted} style={styles.source}>
+                          Repéré par l'IA
+                          {row.sources[field.key]?.chapterTitle ? ` dans « ${row.sources[field.key]?.chapterTitle} »` : ""}
+                          {row.sources[field.key]?.quote ? ` : « ${row.sources[field.key]?.quote} »` : ""}
+                        </Text>
+                      ) : null}
                     </View>
                   ))}
             </Card>
@@ -279,7 +291,8 @@ export default function StudioSheetScreen() {
       {!editing && sections.every((section) => section.fields.every((field) => !valueOf(row, field.key, field.column))) ? (
         <InlineNotice tone="info" title="Fiche encore vide">
           Remplissez seulement ce que vous savez déjà : un champ inconnu reste vide, rien n'est
-          inventé. L'analyse automatique de vos chapitres arrivera dans une prochaine version.
+          inventé. L'analyse automatique complète aussi la fiche à partir de vos chapitres, citation
+          à l'appui.
         </InlineNotice>
       ) : null}
 
@@ -368,6 +381,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: 3,
+  },
+  source: {
+    fontStyle: "italic",
   },
   relationRow: {
     flexDirection: "row",

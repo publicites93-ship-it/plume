@@ -125,6 +125,19 @@ export default function ChapterEditorScreen() {
     conflictRef.current = conflict;
   }, [conflict]);
 
+  // En quittant l'éditeur, le studio analyse le chapitre en arrière-plan. Le
+  // serveur ignore la demande si le texte n'a pas changé ; aucune erreur n'est
+  // montrée ici (profil « Lire », quota atteint…) : l'écriture n'est jamais gênée.
+  const studioClient = trpc.useUtils().client;
+  useEffect(() => {
+    if (!chapterId) return;
+    return () => {
+      void studioClient.studio.requestAnalysis
+        .mutate({ chapterId, manual: false })
+        .catch(() => undefined);
+    };
+  }, [chapterId, studioClient]);
+
   const chapter = chapterQuery.data;
 
   useEffect(() => {
