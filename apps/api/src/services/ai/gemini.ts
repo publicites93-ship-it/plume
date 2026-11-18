@@ -82,7 +82,15 @@ const storyResponseSchema = z.object({
       }),
     )
     .min(1)
-    .transform((list) => list.slice(0, 7)),
+    .transform((list) => list.slice(0, 7))
+    // Certains modèles notent sur 10 malgré la consigne : si toutes les notes
+    // sont ≤ 10, l'échelle est ramenée sur 100 (une note réelle de 0 à 10 sur
+    // les sept compétences à la fois est invraisemblable).
+    .transform((list) =>
+      list.every((analysis) => analysis.score <= 10)
+        ? list.map((analysis) => ({ ...analysis, score: analysis.score * 10 }))
+        : list,
+    ),
 });
 
 const coachResponseSchema = z.object({
