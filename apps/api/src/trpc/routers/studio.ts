@@ -16,7 +16,13 @@ const studioProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 export const studioRouter = router({
   /** Analyse d'un chapitre en arrière-plan (sortie de l'éditeur ou bouton du studio). */
   requestAnalysis: studioProcedure
-    .input(z.object({ chapterId: z.string().uuid(), manual: z.boolean().default(false) }))
+    .input(
+      z.object({
+        chapterId: z.string().uuid(),
+        manual: z.boolean().default(false),
+        force: z.boolean().default(false),
+      }),
+    )
     .mutation(async ({ ctx, input }) => requestChapterAnalysis(ctx.db, ctx.userId, input)),
 
   overview: studioProcedure

@@ -74,6 +74,23 @@ function nameAppears(name: string, text: string): boolean {
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(normalize(text));
 }
 
+/**
+ * Forme du nom réellement présente dans le texte, ou null si le nom est absent
+ * (invention). Tolère un article ajouté (« Le Lapin Blanc » pour « un lapin
+ * blanc ») ou une précision entre parenthèses (« Alice (l'héroïne) »).
+ */
+export function nameInText(name: string, text: string): string | null {
+  const cleaned = name.replace(/\s*[([].*?[)\]]\s*/g, " ").replace(/\s+/g, " ").trim();
+  const withoutArticle = cleaned.replace(/^(le|la|les|l['’]|un|une|des|du|the|a|an)\s*/i, "").trim();
+  for (const candidate of [name.trim(), cleaned, withoutArticle]) {
+    if (candidate.length >= 2 && nameAppears(candidate, text)) {
+      // Majuscule initiale pour une fiche lisible, sans changer le reste du nom.
+      return candidate.charAt(0).toLocaleUpperCase("fr-FR") + candidate.slice(1);
+    }
+  }
+  return null;
+}
+
 function startOfMonth(): Date {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -138,7 +155,7 @@ export type AnalysisRequestStatus =
 export async function requestChapterAnalysis(
   db: Database,
   userId: string,
-  input: { chapterId: string; manual: boolean },
+  input: { chapterId: string; manual: boolean; force?: boolean },
 ): Promise<{ status: AnalysisRequestStatus; limit?: number; used?: number }> {
   const [row] = await db
     .select({ chapter: chapters, story: stories })
@@ -159,7 +176,10 @@ export async function requestChapterAnalysis(
   if (state?.status === "running" && state.startedAt && now - state.startedAt.getTime() < STALE_RUN_MS) {
     return { status: "running" };
   }
-  if (state?.contentHash === hash && state.status === "done") return { status: "up_to_date" };
+  // « Réanalyser » (demande explicite) relance même un texte inchangé ; sinon rien n'est refait.
+  if (state?.contentHash === hash && state.status === "done" && !(input.manual && input.force)) {
+    return { status: "up_to_date" };
+  }
   if (!input.manual && state?.analyzedAt && now - state.analyzedAt.getTime() < AUTO_INTERVAL_MS) {
     return { status: "deferred" };
   }
@@ -301,18 +321,22 @@ async function runChapterAnalysis(
 
   for (const extracted of draft.characters) {
     // Un personnage dont le nom n'apparaît pas dans le chapitre est une invention : ignoré.
-    if (!nameAppears(extracted.name, text)) {
+    const name = nameInText(extracted.name, text);
+    if (!name) {
       summary.discarded += 1;
       continue;
     }
-    const aliases = extracted.aliases.filter((alias) => alias.trim() && nameAppears(alias, text));
+    const aliases = extracted.aliases
+      .map((alias) => nameInText(alias, text))
+      .filter((alias): alias is string => Boolean(alias) && normalize(alias!) !== normalize(name));
     let row =
+      byName.get(normalize(name)) ??
       byName.get(normalize(extracted.name)) ??
       aliases.map((alias) => byName.get(normalize(alias))).find(Boolean);
     if (!row) {
       const [created] = await db
         .insert(characters)
-        .values({ storyId: story.id, name: extracted.name.trim(), aliases, origin: "ai" })
+        .values({ storyId: story.id, name, aliases, origin: "ai" })
         .returning();
       row = created!;
       summary.characters += 1;
@@ -331,15 +355,16 @@ async function runChapterAnalysis(
 
   const locByName = new Map(locationRows.map((row) => [normalize(row.name), row]));
   for (const extracted of draft.locations) {
-    if (!nameAppears(extracted.name, text)) {
+    const name = nameInText(extracted.name, text);
+    if (!name) {
       summary.discarded += 1;
       continue;
     }
-    let row = locByName.get(normalize(extracted.name));
+    let row = locByName.get(normalize(name)) ?? locByName.get(normalize(extracted.name));
     if (!row) {
       const [created] = await db
         .insert(locations)
-        .values({ storyId: story.id, name: extracted.name.trim(), origin: "ai" })
+        .values({ storyId: story.id, name, origin: "ai" })
         .returning();
       row = created!;
       locByName.set(normalize(row.name), row);
@@ -349,8 +374,12 @@ async function runChapterAnalysis(
   }
 
   for (const relation of draft.relations) {
-    const from = byName.get(normalize(relation.from));
-    const to = byName.get(normalize(relation.to));
+    const resolve = (raw: string) => {
+      const inText = nameInText(raw, text);
+      return byName.get(normalize(raw)) ?? (inText ? byName.get(normalize(inText)) : undefined);
+    };
+    const from = resolve(relation.from);
+    const to = resolve(relation.to);
     if (!from || !to || from.id === to.id || !(RELATION_KIND_IDS as readonly string[]).includes(relation.kind)) continue;
     if (!verified(relation.quote)) {
       summary.discarded += 1;

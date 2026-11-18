@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetConfigForTests } from "../src/config";
 import { resetAIProviderForTests } from "../src/services/ai/index";
-import { waitForStudioAnalyses } from "../src/services/studioAnalysis";
+import { nameInText, waitForStudioAnalyses } from "../src/services/studioAnalysis";
 import { SAMPLE_TEXT, registerUser, setPlan, setupDatabase, teardown, type TestContext } from "./helpers";
 
 process.env.AI_PROVIDER = "anthropic";
@@ -178,6 +178,16 @@ describe("Studio — analyse automatique des chapitres", () => {
     });
     overview = await author.caller.studio.overview({ storyId: story.id });
     expect(overview.quota.chapterAnalyses).toMatchObject({ used: 2, remaining: 0 });
+  });
+
+  it("reconnaît un nom écrit avec un article ou une précision, et refuse un nom absent", () => {
+    const text = "Alice vit passer un lapin blanc aux yeux roses. Le Chapelier riait.";
+    expect(nameInText("Alice", text)).toBe("Alice");
+    expect(nameInText("Alice (l'héroïne)", text)).toBe("Alice");
+    expect(nameInText("Le Lapin Blanc", text)).toBe("Lapin Blanc");
+    expect(nameInText("le Chapelier", text)).toBe("Le Chapelier");
+    expect(nameInText("La Reine de Cœur", text)).toBeNull();
+    expect(nameInText("Ali", text)).toBeNull();
   });
 
   it("refuse l'analyse du chapitre d'un autre compte", async () => {

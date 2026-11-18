@@ -69,9 +69,9 @@ export function StudioAnalysis({
     ]);
   }
 
-  async function analyze(chapterId: string) {
+  async function analyze(chapterId: string, force = false) {
     try {
-      const result = await request.mutateAsync({ chapterId, manual: true });
+      const result = await request.mutateAsync({ chapterId, manual: true, force });
       if (result.status === "quota") {
         toast(`Quota d'analyses atteint ce mois-ci (${result.used}/${result.limit}).`, "error");
       } else {
@@ -146,7 +146,7 @@ export function StudioAnalysis({
               </Text>
               <Text variant="caption" color={chapter.status === "failed" ? theme.danger : theme.textMuted}>
                 {chapter.upToDate
-                  ? `À jour · ${chapter.analyzedAt ? relativeTime(chapter.analyzedAt) : ""}`
+                  ? `À jour · ${chapter.analyzedAt ? relativeTime(chapter.analyzedAt) : ""}${summaryText(chapter.summary)}`
                   : chapter.status === "done"
                     ? "Modifié depuis la dernière analyse"
                     : (STATUS_LABEL[chapter.status] ?? chapter.status)}
@@ -155,7 +155,7 @@ export function StudioAnalysis({
             {chapter.status === "running" ? (
               <Ionicons name="hourglass-outline" size={18} color={theme.gold} />
             ) : chapter.upToDate ? (
-              <Ionicons name="checkmark-circle" size={18} color={theme.success} />
+              <Button label="Réanalyser" size="sm" variant="ghost" onPress={() => void analyze(chapter.id, true)} />
             ) : (
               <Button label="Analyser" size="sm" variant="secondary" onPress={() => void analyze(chapter.id)} />
             )}
@@ -234,3 +234,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 });
+
+/** Bilan lisible d'une analyse (« 2 personnages, 1 lieu… »). */
+function summaryText(summary: Record<string, number>): string {
+  const parts: string[] = [];
+  const add = (n: number | undefined, one: string, many: string) => {
+    if (n) parts.push(`${n} ${n > 1 ? many : one}`);
+  };
+  add(summary.characters, "personnage", "personnages");
+  add(summary.locations, "lieu", "lieux");
+  add(summary.fields, "info. de fiche", "infos de fiche");
+  add(summary.relations, "relation", "relations");
+  add(summary.events, "événement", "événements");
+  add(summary.proposals, "proposition", "propositions");
+  add(summary.discarded, "écartée (sans citation)", "écartées (sans citation)");
+  return parts.length ? ` · ${parts.join(", ")}` : " · rien de nouveau";
+}

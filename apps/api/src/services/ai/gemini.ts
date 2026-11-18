@@ -449,6 +449,7 @@ RÈGLES ABSOLUES :
 1. Chaque information doit être justifiée par une citation copiée MOT POUR MOT du chapitre (champ "quote"), courte (une phrase au plus).
 2. N'écris que ce que le texte affirme. Pas de déduction, pas d'hypothèse, pas d'interprétation psychologique non écrite. Dans le doute, n'écris rien.
 3. Utilise le nom déjà connu quand un personnage ou un lieu connu réapparaît, même sous un surnom (ajoute alors le surnom dans "aliases").
+   Écris chaque nom ("name", "aliases", "from", "to") EXACTEMENT comme il apparaît dans le texte, sans article ajouté ni précision entre parenthèses.
 4. "value" est une reformulation brève et neutre de ce que dit la citation (pas de style, pas de phrase de roman).
 5. Champs autorisés pour un personnage : ${EXTRACTABLE_CHARACTER_FIELDS.join(", ")}.
    Champs autorisés pour un lieu : ${EXTRACTABLE_LOCATION_FIELDS.join(", ")}.
