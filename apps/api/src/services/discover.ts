@@ -40,7 +40,7 @@ export async function discoverRows(db: Database, userId?: string) {
     .limit(300);
 
   if (candidates.length === 0) {
-    return { trending: [], mostLoved: [], latest: [], forYou: [] };
+    return { trending: [], mostLoved: [], latest: [], forYou: [], byGenre: [] };
   }
   const ids = candidates.map((row) => row.story.id);
   const since = new Date(Date.now() - WEEK_MS);
@@ -138,7 +138,32 @@ export async function discoverRows(db: Database, userId?: string) {
     }
   }
 
+  // Une rangée par catégorie (genre), les plus appréciées d'abord ; les
+  // catégories les plus fournies en premier.
+  const genres = new Map<string, typeof cards>();
+  for (const card of cards) {
+    if (!card.genre) continue;
+    const list = genres.get(card.genre) ?? [];
+    list.push(card);
+    genres.set(card.genre, list);
+  }
+  const byGenre = [...genres.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], "fr"))
+    .slice(0, 12)
+    .map(([genre, list]) => ({
+      genre,
+      items: [...list]
+        .sort((a, b) => b.likes + 2 * b.favorites + b.readers - (a.likes + 2 * a.favorites + a.readers))
+        .slice(0, ROW_SIZE),
+    }));
+
   // Champs internes de calcul retirés avant envoi.
   const strip = (list: typeof cards) => list.map(({ weekScore: _w, lastChapterAt: _l, ...card }) => card);
-  return { trending: strip(trending), mostLoved: strip(mostLoved), latest: strip(latest), forYou: strip(forYou) };
+  return {
+    trending: strip(trending),
+    mostLoved: strip(mostLoved),
+    latest: strip(latest),
+    forYou: strip(forYou),
+    byGenre: byGenre.map((row) => ({ genre: row.genre, items: strip(row.items) })),
+  };
 }

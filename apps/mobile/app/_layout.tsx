@@ -114,7 +114,8 @@ export default function RootLayout() {
               }}
             >
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(protected)" options={{ animation: "slide_from_right" }} />
+              {/* Lecture en plein écran : seule partie de l'appli sans barre de navigation. */}
+              <Stack.Screen name="(lecture)" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="bienvenue" options={{ animation: "fade" }} />
               <Stack.Screen name="connexion" options={{ animation: "slide_from_bottom" }} />
               <Stack.Screen name="inscription" options={{ animation: "slide_from_right" }} />

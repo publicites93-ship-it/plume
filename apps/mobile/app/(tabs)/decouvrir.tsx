@@ -55,6 +55,13 @@ export default function DiscoverScreen() {
     { key: "forYou", title: "Selon vos goûts", eyebrow: "D'après vos favoris et lectures", items: discover.data?.forYou ?? [] },
     { key: "mostLoved", title: "Les plus aimées", eyebrow: "J'aime et favoris", items: discover.data?.mostLoved ?? [] },
     { key: "latest", title: "Nouveautés", eyebrow: "Derniers chapitres publiés", items: discover.data?.latest ?? [] },
+    // Une rangée par catégorie, sous les sélections.
+    ...(discover.data?.byGenre ?? []).map((row) => ({
+      key: `genre-${row.genre}`,
+      title: row.genre,
+      eyebrow: "Catégorie",
+      items: row.items as StoryCardData[],
+    })),
   ];
 
   const items = catalog.data?.items ?? [];

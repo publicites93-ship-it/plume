@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Keyboard, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { BottomTabBarProps } from "expo-router/tabs";
 import { spacing } from "@plume/shared";
@@ -18,6 +19,17 @@ const tabs: Record<
 };
 
 export function PlumeTabBar({ state, descriptors, emitter, navigateToTab, insets }: BottomTabBarProps) {
+  // Le clavier recouvrirait la barre : elle s'efface pendant la saisie.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  if (keyboardOpen) return null;
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={styles.ornament}>
@@ -27,6 +39,8 @@ export function PlumeTabBar({ state, descriptors, emitter, navigateToTab, insets
       </View>
       <View style={styles.bar}>
         {state.routes.map((route, index) => {
+          // Seuls les cinq onglets sont affichés (le groupe d'écrans protégés est caché).
+          if (!tabs[route.name]) return null;
           const focused = state.index === index;
           const config = tabs[route.name] ?? {
             label: route.name,

@@ -59,6 +59,10 @@ describe("écran Découvrir", () => {
     const brumes = anonymous.latest.find((item) => item.id === fantasy.id);
     expect(brumes).toMatchObject({ likes: 0, favorites: 0, readers: 1 });
     expect(anonymous.latest).toHaveLength(3);
+    // Une rangée par catégorie : Fantastique (2 histoires publiques) avant Romance.
+    expect(anonymous.byGenre.map((row) => row.genre)).toEqual(["Fantastique", "Romance"]);
+    expect(anonymous.byGenre[0]!.items.map((item) => item.id)).toEqual([fantasy.id, fantasy2.id]);
+    expect(anonymous.byGenre.flatMap((row) => row.items).some((item) => item.id === hidden.id)).toBe(false);
 
     // Selon mes goûts : le lecteur a lu du Fantastique ; on lui propose l'autre
     // histoire fantastique, pas celles qu'il connaît déjà.

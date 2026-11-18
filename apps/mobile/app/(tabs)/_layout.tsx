@@ -20,6 +20,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <PlumeTabBar {...props} />}
+      // Le retour suit l'historique réel (fiche → studio → onglet d'origine).
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: palette.nightDeep },
@@ -30,6 +32,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="ecrire" options={{ title: "Écrire" }} />
       <Tabs.Screen name="apprendre" options={{ title: "Apprendre" }} />
       <Tabs.Screen name="profil" options={{ title: "Profil" }} />
+      {/* Écrans d'histoire, studio, coach… : sous la barre de navigation, sans onglet propre. */}
+      <Tabs.Screen name="(protected)" options={{ href: null }} />
     </Tabs>
   );
 }
