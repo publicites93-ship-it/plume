@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { GENRES, radii, spacing } from "@plume/shared";
+import { GENRES, spacing } from "@plume/shared";
 import {
   Badge,
   Button,
@@ -22,7 +22,7 @@ import {
 } from "@/components";
 import { trpc } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
-import { palette, theme } from "@/theme";
+import { theme } from "@/theme";
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -49,6 +49,9 @@ export default function DiscoverScreen() {
   });
 
   const filtering = Boolean(debounced || genre || status);
+  // Un genre seul affiche son propre carrousel ; la recherche et l'état
+  // basculent sur la liste complète filtrée.
+  const genreOnly = Boolean(genre) && !debounced && !status;
   const discover = trpc.reading.discover.useQuery(undefined, { enabled: !filtering });
   const rows: Array<{ key: string; title: string; eyebrow: string; items: StoryCardData[] }> = [
     { key: "trending", title: "Histoires du moment", eyebrow: "Cette semaine", items: discover.data?.trending ?? [] },
@@ -66,6 +69,13 @@ export default function DiscoverScreen() {
 
   const items = catalog.data?.items ?? [];
   const hasMore = Boolean(catalog.data?.nextCursor);
+
+  function resetFilters() {
+    setSearch("");
+    setDebounced("");
+    setGenre(undefined);
+    setStatus(undefined);
+  }
 
   return (
     <Screen
@@ -101,33 +111,6 @@ export default function DiscoverScreen() {
         right={<Ionicons name="search" size={18} color={theme.textMuted} />}
       />
 
-      {!filtering
-        ? rows
-            .filter((row) => row.items.length > 0)
-            .map((row) => (
-              <View key={row.key} style={styles.carousel}>
-                <SectionHeader title={row.title} eyebrow={row.eyebrow} />
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.carouselContent}
-                  accessibilityLabel={row.title}
-                >
-                  {row.items.map((story) => (
-                    <StoryTile
-                      key={story.id}
-                      story={story}
-                      width={132}
-                      onPress={() =>
-                        router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
-                      }
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            ))
-        : null}
-
       <View style={styles.filterBlock}>
         <Text variant="label" color={theme.textMuted}>
           Genres
@@ -145,75 +128,159 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      <View style={styles.statusRow}>
-        <Chip
-          label="Tous les états"
-          selected={!status}
-          onPress={() => setStatus(undefined)}
-        />
-        <Chip
-          label="En cours"
-          selected={status === "ongoing"}
-          onPress={() => setStatus(status === "ongoing" ? undefined : "ongoing")}
-        />
-        <Chip
-          label="Terminées"
-          selected={status === "completed"}
-          onPress={() => setStatus(status === "completed" ? undefined : "completed")}
-        />
-      </View>
-
-      <View style={styles.resultHeader}>
-        <Text variant="label" color={theme.gold}>
-          {debounced ? `Recherche « ${debounced} »` : filtering ? "Sélection" : "Toutes les histoires"}
-        </Text>
-        <Text variant="caption" color={theme.textMuted}>
-          {items.length} histoire{items.length > 1 ? "s" : ""}
-        </Text>
-      </View>
-
-      {catalog.isLoading ? (
-        <LoadingState label="Feuilletage du catalogue…" />
-      ) : catalog.isError ? (
-        <ErrorState message={errorMessage(catalog.error)} onRetry={() => void catalog.refetch()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon="search-outline"
-          title="Aucune histoire ne répond"
-          message="Essayez un autre genre ou un titre plus large. Les histoires doivent être publiées pour apparaître ici."
-          actionLabel="Réinitialiser les filtres"
-          onAction={() => {
-            setSearch("");
-            setDebounced("");
-            setGenre(undefined);
-            setStatus(undefined);
-          }}
-        />
-      ) : (
-        <View style={styles.list}>
-          {items.map((story) => (
-            <StoryRowCard
-              key={story.id}
-              story={story}
-              onPress={() =>
-                router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
-              }
+      {genreOnly ? (
+        <View style={styles.carousel}>
+          <SectionHeader
+            title={genre ?? ""}
+            eyebrow={`Catégorie · ${items.length} histoire${items.length > 1 ? "s" : ""}`}
+          />
+          {catalog.isLoading ? (
+            <LoadingState label={`Ouverture du carrousel ${genre ?? ""}…`} />
+          ) : catalog.isError ? (
+            <ErrorState message={errorMessage(catalog.error)} onRetry={() => void catalog.refetch()} />
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon="albums-outline"
+              title="Aucune histoire dans ce genre"
+              message="Choisissez un autre genre ou revenez à toutes les histoires."
+              actionLabel="Voir tous les genres"
+              onAction={() => setGenre(undefined)}
             />
-          ))}
-          {hasMore ? (
-            <Button
-              label="Charger davantage d'histoires"
-              variant="secondary"
-              loading={catalog.isFetching}
-              onPress={() => setLimit((value) => value + 12)}
-            />
-          ) : items.length > 4 ? (
-            <Text variant="caption" color={theme.textMuted} align="center" style={styles.endNote}>
-              Vous avez atteint la fin de cette sélection.
-            </Text>
-          ) : null}
+          ) : (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carouselContent}
+                accessibilityLabel={`Histoires du genre ${genre ?? ""}`}
+              >
+                {items.map((story) => (
+                  <StoryTile
+                    key={story.id}
+                    story={story}
+                    width={132}
+                    onPress={() =>
+                      router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
+                    }
+                  />
+                ))}
+              </ScrollView>
+              {hasMore ? (
+                <Button
+                  label="Charger davantage d'histoires"
+                  variant="secondary"
+                  loading={catalog.isFetching}
+                  onPress={() => setLimit((value) => value + 12)}
+                  style={styles.genreMore}
+                />
+              ) : null}
+            </>
+          )}
         </View>
-      )}
+      ) : !filtering ? (
+        rows
+          .filter((row) => row.items.length > 0)
+          .map((row) => (
+            <View key={row.key} style={styles.carousel}>
+              <SectionHeader title={row.title} eyebrow={row.eyebrow} />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carouselContent}
+                accessibilityLabel={row.title}
+              >
+                {row.items.map((story) => (
+                  <StoryTile
+                    key={story.id}
+                    story={story}
+                    width={132}
+                    onPress={() =>
+                      router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
+                    }
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ))
+      ) : null}
+
+      {!genreOnly ? (
+        <>
+          <View style={styles.statusRow}>
+            <Chip
+              label="Tous les états"
+              selected={!status}
+              onPress={() => setStatus(undefined)}
+            />
+            <Chip
+              label="En cours"
+              selected={status === "ongoing"}
+              onPress={() => setStatus(status === "ongoing" ? undefined : "ongoing")}
+            />
+            <Chip
+              label="Terminées"
+              selected={status === "completed"}
+              onPress={() => setStatus(status === "completed" ? undefined : "completed")}
+            />
+          </View>
+
+          <View style={styles.resultHeader}>
+            <Text variant="label" color={theme.gold}>
+              {debounced
+                ? `Recherche « ${debounced} »`
+                : filtering
+                  ? "Sélection"
+                  : "Toutes les histoires"}
+            </Text>
+            <Text variant="caption" color={theme.textMuted}>
+              {items.length} histoire{items.length > 1 ? "s" : ""}
+            </Text>
+          </View>
+
+          {catalog.isLoading ? (
+            <LoadingState label="Feuilletage du catalogue…" />
+          ) : catalog.isError ? (
+            <ErrorState message={errorMessage(catalog.error)} onRetry={() => void catalog.refetch()} />
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon="search-outline"
+              title="Aucune histoire ne répond"
+              message="Essayez un autre genre ou un titre plus large. Les histoires doivent être publiées pour apparaître ici."
+              actionLabel="Réinitialiser les filtres"
+              onAction={resetFilters}
+            />
+          ) : (
+            <View style={styles.list}>
+              {items.map((story) => (
+                <StoryRowCard
+                  key={story.id}
+                  story={story}
+                  onPress={() =>
+                    router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
+                  }
+                />
+              ))}
+              {hasMore ? (
+                <Button
+                  label="Charger davantage d'histoires"
+                  variant="secondary"
+                  loading={catalog.isFetching}
+                  onPress={() => setLimit((value) => value + 12)}
+                />
+              ) : items.length > 4 ? (
+                <Text
+                  variant="caption"
+                  color={theme.textMuted}
+                  align="center"
+                  style={styles.endNote}
+                >
+                  Vous avez atteint la fin de cette sélection.
+                </Text>
+              ) : null}
+            </View>
+          )}
+        </>
+      ) : null}
 
       <Card style={styles.disclaimer} accent>
         <View style={styles.disclaimerRow}>
@@ -221,7 +288,7 @@ export default function DiscoverScreen() {
             Confidentialité
           </Badge>
           <Text variant="caption" color={theme.textSecondary}>
-            Un brouillon reste privé jusqu'à ce que son auteur change sa visibilité et publie un
+            Un brouillon reste privé jusqu&apos;à ce que son auteur change sa visibilité et publie un
             chapitre. La recherche ne peut jamais révéler un manuscrit privé.
           </Text>
         </View>
@@ -237,6 +304,9 @@ const styles = StyleSheet.create({
   carouselContent: {
     gap: spacing[3],
     paddingRight: spacing[4],
+  },
+  genreMore: {
+    marginTop: spacing[3],
   },
   libraryButton: {
     width: 44,

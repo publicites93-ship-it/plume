@@ -107,7 +107,7 @@ export async function setAppTheme(id: AppThemeId): Promise<void> {
     globalThis.location?.reload();
     return;
   }
-  SecureStore.setItem(THEME_KEY, id);
+  await SecureStore.setItem(THEME_KEY, id);
   await reloadAppAsync("Changement de thème");
 }
 

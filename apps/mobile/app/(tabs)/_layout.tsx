@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LoadingState } from "@/components";
 import { PlumeTabBar } from "@/components/PlumeTabBar";
 import { useSessionGate } from "@/lib/session";
-import { palette, theme } from "@/theme";
+import { theme } from "@/theme";
 
 export default function TabsLayout() {
   const { loading, session } = useSessionGate();
@@ -32,8 +32,11 @@ export default function TabsLayout() {
       <Tabs.Screen name="ecrire" options={{ title: "Écrire" }} />
       <Tabs.Screen name="apprendre" options={{ title: "Apprendre" }} />
       <Tabs.Screen name="profil" options={{ title: "Profil" }} />
-      {/* Écrans d'histoire, studio, coach… : sous la barre de navigation, sans onglet propre. */}
-      <Tabs.Screen name="(protected)" options={{ href: null }} />
+      {/* Écrans d'histoire, studio, coach… : sous la barre de navigation, sans onglet propre.
+          Ne pas remettre `href: null` : depuis expo-router 58, un onglet caché qui reçoit le
+          focus est redirigé vers l'onglet initial (Accueil). L'onglet reste déclaré ici et
+          PlumeTabBar n'affiche que les cinq onglets nommés. */}
+      <Tabs.Screen name="(protected)" options={{ title: "Espace" }} />
     </Tabs>
   );
 }
