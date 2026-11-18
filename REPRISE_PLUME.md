@@ -25,7 +25,7 @@ Il **remplace** `TRANSFERT_OPENCODE_PLUME.md` (17/11, arrêté au commit `bde52d
 8. **Paiement** : **Stripe**, en **mode test**. ✅ Les pages de paiement sont créées. Le parcours d'achat complet dans l'appli n'a pas été confirmé.
 9. **Studio d'écriture** : phase 1 (fiches), phase 2 (analyse automatique) et phase 3 (panneau dans l'éditeur) codées. Phases 4 à 6 à faire (§8).
 10. **Thème** Nuit, Sépia ou Ivoire appliqué à toute l'appli, et barre de navigation visible partout sauf en lecture : codés en 0.6.0, **non vérifiés visuellement**.
-11. **Dernier APK vérifié** : **0.5.1** (versionCode 10). **0.6.0** (versionCode 11) : build EAS `d9c21e89-2f56-4955-a10d-852147fa1d5e` **en cours** au moment de la rédaction.
+11. **Dernier APK** : **0.6.0** (versionCode 11), build EAS `d9c21e89`, ✅ vérifié (intact, même signature, bonne API). Lien au §4. **Pas encore testé sur téléphone.**
 12. **Commits peut-être pas encore en production** : `cf0a0f2`, `852df3b` (carrousels par catégorie) et `dca6f06`. Il faut un **Manual Deploy** sur Render, à demander à l'utilisateur.
 
 ---
@@ -272,7 +272,7 @@ Liens profonds : plume://verifier-email, plume://reinitialiser-mot-de-passe, plu
 | 0.4.0 | 8 | `5f00b685` | https://expo.dev/artifacts/eas/IJmaEqGw4DfkMRnjOpGrTQHXQzDC2RLeDdqYp0FZbP8.apk |
 | 0.5.0 | 9 | `e07aa46c` | https://expo.dev/artifacts/eas/a-NbrfVeBOkNOWObbXkJC-qzsd8L6wZ-x02IGF2wmQU.apk |
 | **0.5.1** | 10 | `0cdd6502` | https://expo.dev/artifacts/eas/hddvSbn7ycFjC-qFdQliINK8sDtQ7659LBD4jhNyfMo.apk (SHA-256 `57c25d6b…7feaf`) |
-| 0.6.0 | 11 | `d9c21e89-2f56-4955-a10d-852147fa1d5e` | **en cours** : `npx eas-cli@latest build:view d9c21e89-2f56-4955-a10d-852147fa1d5e` |
+| **0.6.0** | 11 | `d9c21e89` | https://expo.dev/artifacts/eas/NlS66ku4bvD4b4s6dD6EgRgh1iz2PM-7swcNBJjivcU.apk (53 829 857 octets, SHA-256 `10b91df3…787985e`) |
 
 - Taille d'un APK : environ **53,8 Mo**, avec deux architectures (`arm64-v8a`, `armeabi-v7a`). L'objectif de moins de 40 Mo n'est atteint qu'avec un AAB.
 - Permissions présentes : INTERNET, ACCESS_NETWORK_STATE, ACCESS_WIFI_STATE, VIBRATE, et DUMP (permission système, origine non identifiée, sans effet pour une appli).
@@ -424,7 +424,7 @@ WHERE created_at >= date_trunc('month', now()) GROUP BY 1, 2;
 ## 8. Travail restant (par priorité)
 
 ### P0 : immédiat
-1. Récupérer le résultat du build 0.6.0 (`d9c21e89…`) et le vérifier (§7.3), puis envoyer le lien à l'utilisateur.
+1. ✅ Le build 0.6.0 est terminé et vérifié (lien au §4). Il reste à obtenir le retour de l'utilisateur après installation.
 2. Demander le **Manual Deploy** de `dca6f06` ou plus récent, puis vérifier :
    - `reading.discover` renvoie bien `byGenre` ;
    - les notes de l'analyse des 7 compétences sont sur 100.
@@ -510,7 +510,7 @@ WHERE created_at >= date_trunc('month', now()) GROUP BY 1, 2;
 ### 9.5 Méthode de reprise
 1. Lire ce fichier, puis `AGENTS.md`. Faire `git log --oneline | head -20` et `git status`.
 2. Lancer les vérifications du §7.2. Attendu : shared 10/10, API 84/84, typecheck OK, expo-doctor 20/20.
-3. Faire l'état de la production : `curl https://plume-api-qk9s.onrender.com/health`, et le statut du build 0.6.0.
+3. Faire l'état de la production : `curl https://plume-api-qk9s.onrender.com/health`, puis vérifier que les commits récents sont déployés (§4).
 4. Demander à l'utilisateur ce qu'il a vu sur la 0.6.0 (captures) et s'il a lancé le Manual Deploy. Traiter ensuite le §8 dans l'ordre.
 5. Pour chaque lot :
    - code et tests ;
