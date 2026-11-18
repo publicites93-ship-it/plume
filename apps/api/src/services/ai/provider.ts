@@ -107,6 +107,34 @@ export interface StoryAnalysisDraft {
   isSimulation: boolean;
 }
 
+/** Information extraite d'un chapitre, toujours accompagnée de sa citation exacte. */
+export interface ExtractedFact {
+  field: string;
+  value: string;
+  quote: string;
+}
+
+export interface StudioExtractionDraft {
+  characters: Array<{ name: string; aliases: string[]; facts: ExtractedFact[] }>;
+  locations: Array<{ name: string; facts: ExtractedFact[] }>;
+  relations: Array<{ from: string; to: string; kind: string; description: string | null; quote: string }>;
+  events: Array<{ title: string; description: string | null; quote: string }>;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  isSimulation: boolean;
+}
+
+export interface StudioExtractionInput {
+  storyTitle: string;
+  chapterTitle: string;
+  chapterText: string;
+  /** Personnages et lieux déjà connus (nom + surnoms), pour éviter les doublons. */
+  knownCharacters: Array<{ name: string; aliases: string[] }>;
+  knownLocations: string[];
+}
+
 export interface AIProvider {
   readonly name: string;
   readonly model: string;
@@ -114,6 +142,7 @@ export interface AIProvider {
   analyzeStory(input: StoryAnalysisProviderInput): Promise<StoryAnalysisDraft>;
   coachReply(input: CoachChatProviderInput): Promise<CoachChatDraft>;
   reviewExercise(input: ExerciseReviewProviderInput): Promise<ExerciseReviewDraft>;
+  extractStudioMemory(input: StudioExtractionInput): Promise<StudioExtractionDraft>;
 }
 
 export class ProviderUnavailableError extends Error {

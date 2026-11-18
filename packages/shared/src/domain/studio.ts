@@ -168,3 +168,37 @@ export const EVENT_CERTAINTY = [
 /** Images du studio (portraits, lieux) : plafonds tant que le stockage reste en base. */
 export const STUDIO_MEDIA_MAX_PER_ENTITY = 3;
 export const STUDIO_MEDIA_MAX_BYTES = 300 * 1024;
+
+/**
+ * Champs que l'analyse automatique peut renseigner. Les champs de pure intention
+ * de l'auteur (arc, notes, évolution future) restent réservés à l'auteur.
+ */
+export const EXTRACTABLE_CHARACTER_FIELDS = [
+  "role", "nickname", "age", "profession", "physical", "hair", "clothing", "accessories", "marks",
+  "summary", "qualities", "flaws", "temperament", "habits", "mood", "speech",
+  "likes", "dislikes", "passions", "motivation", "goals", "fear", "wounds", "secret", "firstAppearance",
+] as const;
+export const EXTRACTABLE_LOCATION_FIELDS = [
+  "type", "description", "atmosphere", "sensations", "lighting", "particularities",
+] as const;
+
+/** Origine d'une information du studio. */
+export type FactOrigin = "author" | "ai";
+export interface FactSource {
+  origin: FactOrigin;
+  chapterId?: string;
+  chapterTitle?: string;
+  quote?: string;
+  at: string;
+}
+
+/** Fonctions IA du studio soumises à quota mensuel (valeurs modifiables en base : plan_limits). */
+export const STUDIO_AI_FEATURES = ["chapter_analysis", "muse_quick", "muse_deep", "coherence"] as const;
+export type StudioAiFeature = (typeof STUDIO_AI_FEATURES)[number];
+
+/** Quotas par défaut (décision du 17/11/2026 : Muse mixte rapide/approfondie). */
+export const STUDIO_AI_DEFAULT_LIMITS: Record<"free" | "plus" | "premium", Record<StudioAiFeature, number>> = {
+  free: { chapter_analysis: 2, muse_quick: 5, muse_deep: 0, coherence: 0 },
+  plus: { chapter_analysis: 25, muse_quick: 80, muse_deep: 10, coherence: 5 },
+  premium: { chapter_analysis: 100, muse_quick: 300, muse_deep: 40, coherence: 30 },
+};

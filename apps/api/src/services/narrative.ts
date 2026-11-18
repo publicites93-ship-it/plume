@@ -9,8 +9,38 @@ import {
   storyPlans,
   timelineEvents,
 } from "../db/schema";
+import type { FactSource } from "@plume/shared";
 import { requireOwnedStory } from "./stories";
 import { deleteMediaForEntity, listMedia, listRelations } from "./studio";
+
+/**
+ * Tout champ que l'auteur modifie devient une information de l'auteur :
+ * l'analyse automatique ne pourra plus que proposer, jamais écraser.
+ */
+function authorSources(
+  before: { sheet: Record<string, string>; sources: Record<string, FactSource> } & Record<string, unknown>,
+  columns: Record<string, unknown>,
+  nextSheet?: Record<string, string>,
+): Record<string, FactSource> {
+  const sources = { ...before.sources };
+  const at = new Date().toISOString();
+  for (const [key, value] of Object.entries(columns)) {
+    if (key === "name" || key === "aliases" || key === "customFields") continue;
+    if ((value ?? null) !== (before[key] ?? null)) {
+      if (value) sources[key] = { origin: "author", at };
+      else delete sources[key];
+    }
+  }
+  if (nextSheet) {
+    for (const key of new Set([...Object.keys(before.sheet), ...Object.keys(nextSheet)])) {
+      if (nextSheet[key] !== before.sheet[key]) {
+        if (nextSheet[key]) sources[key] = { origin: "author", at };
+        else delete sources[key];
+      }
+    }
+  }
+  return sources;
+}
 
 /** Retire les champs vides : une information inconnue reste non renseignée. */
 function cleanSheet(sheet?: Record<string, string>): Record<string, string> {
@@ -120,9 +150,12 @@ export async function updateCharacter(
   await requireOwnedStory(db, input.storyId, userId);
   await assertRowBelongsToStory(db, characters, input.id, input.storyId);
   const { id, storyId, sheet, ...fields } = input;
+  const [before] = await db.select().from(characters).where(eq(characters.id, id)).limit(1);
+  const nextSheet = sheet ? cleanSheet(sheet) : undefined;
+  const sources = authorSources(before!, fields as Record<string, unknown>, nextSheet);
   const [row] = await db
     .update(characters)
-    .set({ ...fields, ...(sheet ? { sheet: cleanSheet(sheet) } : {}), updatedAt: new Date() })
+    .set({ ...fields, ...(nextSheet ? { sheet: nextSheet } : {}), sources, updatedAt: new Date() })
     .where(eq(characters.id, id))
     .returning();
   return row;
@@ -172,9 +205,12 @@ export async function updateLocation(
   await requireOwnedStory(db, input.storyId, userId);
   await assertRowBelongsToStory(db, locations, input.id, input.storyId);
   const { id, storyId, sheet, ...fields } = input;
+  const [before] = await db.select().from(locations).where(eq(locations.id, id)).limit(1);
+  const nextSheet = sheet ? cleanSheet(sheet) : undefined;
+  const sources = authorSources(before!, fields as Record<string, unknown>, nextSheet);
   const [row] = await db
     .update(locations)
-    .set({ ...fields, ...(sheet ? { sheet: cleanSheet(sheet) } : {}), updatedAt: new Date() })
+    .set({ ...fields, ...(nextSheet ? { sheet: nextSheet } : {}), sources, updatedAt: new Date() })
     .where(eq(locations.id, id))
     .returning();
   return row;

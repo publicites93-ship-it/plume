@@ -68,6 +68,8 @@ export async function creditsUsedThisMonth(db: Database, userId: string): Promis
     .where(and(eq(aiUsageRecords.userId, userId), gte(aiUsageRecords.createdAt, startOfMonth())))
     .groupBy(aiUsageRecords.taskKind);
   return rows.reduce((sumCredits, row) => {
+    // Les fonctions du Studio ont leurs propres quotas (plan_limits) : hors crédits du coach.
+    if (row.taskKind.startsWith("studio_")) return sumCredits;
     const kind = (AI_TASK_KINDS as readonly string[]).includes(row.taskKind)
       ? (row.taskKind as AiTaskKind)
       : null;

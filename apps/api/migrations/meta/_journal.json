@@ -50,6 +50,13 @@
       "when": 1794950080405,
       "tag": "0006_black_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794968482237,
+      "tag": "0007_square_mongu",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { FactSource } from "@plume/shared";
 
 export const planEnum = pgEnum("plan", ["free", "plus", "premium"]);
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
@@ -732,6 +733,10 @@ export const characters = pgTable(
     aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
     /** Champs de fiche supplémentaires (voir CHARACTER_SECTIONS dans @plume/shared). */
     sheet: jsonb("sheet").$type<Record<string, string>>().notNull().default({}),
+    /** "author" ou "ai" (fiche créée par l'analyse automatique). */
+    origin: text("origin").notNull().default("author"),
+    /** Source de chaque champ renseigné : auteur, ou IA avec chapitre et citation vérifiée. */
+    sources: jsonb("sources").$type<Record<string, FactSource>>().notNull().default({}),
     ...timestamps,
   },
   (table) => [index("characters_story_idx").on(table.storyId, table.name)],
@@ -750,6 +755,8 @@ export const locations = pgTable(
     history: text("history"),
     notes: text("notes"),
     sheet: jsonb("sheet").$type<Record<string, string>>().notNull().default({}),
+    origin: text("origin").notNull().default("author"),
+    sources: jsonb("sources").$type<Record<string, FactSource>>().notNull().default({}),
     ...timestamps,
   },
   (table) => [index("locations_story_idx").on(table.storyId, table.name)],
@@ -789,6 +796,8 @@ export const timelineEvents = pgTable(
     consequences: text("consequences"),
     /** "confirmed" (établi dans le texte), "hypothesis" ou "idea" (piste pour la suite). */
     certainty: text("certainty").notNull().default("confirmed"),
+    origin: text("origin").notNull().default("author"),
+    sourceQuote: text("source_quote"),
     ...timestamps,
   },
   (table) => [index("events_story_idx").on(table.storyId, table.narrativeOrder)],
@@ -813,6 +822,7 @@ export const characterRelations = pgTable(
     /** Origine de l'information : "author" (saisie), "extracted" ou "suggested" (IA, phase 2). */
     origin: text("origin").notNull().default("author"),
     sourceChapterId: uuid("source_chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+    sourceQuote: text("source_quote"),
     ...timestamps,
   },
   (table) => [
@@ -840,6 +850,65 @@ export const studioMedia = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("studio_media_entity_idx").on(table.entityType, table.entityId, table.createdAt)],
+);
+
+/** État de l'analyse automatique de chaque chapitre (pour n'analyser que ce qui a changé). */
+export const chapterAnalysisState = pgTable(
+  "chapter_analysis_state",
+  {
+    chapterId: uuid("chapter_id")
+      .primaryKey()
+      .references(() => chapters.id, { onDelete: "cascade" }),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    /** Empreinte du texte analysé en dernier. */
+    contentHash: text("content_hash"),
+    status: text("status").notNull().default("idle"),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    analyzedAt: timestamp("analyzed_at", { withTimezone: true }),
+    model: text("model"),
+    summary: jsonb("summary").$type<Record<string, number>>().notNull().default({}),
+  },
+  (table) => [index("chapter_analysis_story_idx").on(table.storyId)],
+);
+
+/**
+ * Propositions de l'IA qui demandent une décision de l'auteur : une information
+ * qui contredit un champ déjà rempli n'est jamais appliquée sans accord.
+ */
+export const studioProposals = pgTable(
+  "studio_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storyId: uuid("story_id")
+      .notNull()
+      .references(() => stories.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    field: text("field").notNull(),
+    currentValue: text("current_value"),
+    proposedValue: text("proposed_value").notNull(),
+    sourceChapterId: uuid("source_chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+    sourceQuote: text("source_quote"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (table) => [index("studio_proposals_story_idx").on(table.storyId, table.status)],
+);
+
+/** Quotas IA par formule et par fonction, modifiables en base sans nouvelle version de l'appli. */
+export const planLimits = pgTable(
+  "plan_limits",
+  {
+    plan: text("plan").notNull(),
+    feature: text("feature").notNull(),
+    monthlyLimit: integer("monthly_limit").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.plan, table.feature] })],
 );
 
 export const storyIdeas = pgTable(

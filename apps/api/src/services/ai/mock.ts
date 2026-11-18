@@ -10,6 +10,8 @@ import type {
   ExerciseReviewProviderInput,
   StoryAnalysisDraft,
   StoryAnalysisProviderInput,
+  StudioExtractionDraft,
+  StudioExtractionInput,
 } from "./provider";
 
 /**
@@ -221,6 +223,44 @@ export class MockPedagogicalProvider implements AIProvider {
       model: this.model,
       inputTokens: 800,
       outputTokens: Math.ceil(reply.length / 4),
+      isSimulation: true,
+    };
+  }
+
+  /**
+   * Simulation locale : repère les noms propres (majuscule hors début de phrase)
+   * et cite la phrase où ils apparaissent. Aucune autre information n'est inventée.
+   */
+  async extractStudioMemory(input: StudioExtractionInput): Promise<StudioExtractionDraft> {
+    const sentences = extractSentences(input.chapterText);
+    const known = new Map<string, string>();
+    for (const character of input.knownCharacters) {
+      known.set(character.name.toLowerCase(), character.name);
+      for (const alias of character.aliases) known.set(alias.toLowerCase(), character.name);
+    }
+    const found = new Map<string, string>();
+    for (const sentence of sentences) {
+      const words = sentence.split(/\s+/).slice(1);
+      for (const raw of words) {
+        const word = raw.replace(/[^\p{L}'’-]/gu, "");
+        if (word.length < 3 || !/^\p{Lu}\p{Ll}/u.test(word)) continue;
+        const name = known.get(word.toLowerCase()) ?? word;
+        if (!found.has(name)) found.set(name, sentence);
+      }
+    }
+    return {
+      characters: [...found.entries()].map(([name, quote]) => ({
+        name,
+        aliases: [],
+        facts: [{ field: "firstAppearance", value: input.chapterTitle, quote }],
+      })),
+      locations: [],
+      relations: [],
+      events: [],
+      provider: this.name,
+      model: this.model,
+      inputTokens: 0,
+      outputTokens: 0,
       isSimulation: true,
     };
   }
