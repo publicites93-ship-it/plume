@@ -2,14 +2,14 @@
   "expo": {
     "name": "Plume",
     "slug": "plume",
-    "version": "0.6.1",
+    "version": "0.6.2",
     "scheme": "plume",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "app.plume.reader",
-      "versionCode": 12,
+      "versionCode": 13,
       "allowBackup": false,
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [

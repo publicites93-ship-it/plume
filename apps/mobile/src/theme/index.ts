@@ -31,11 +31,22 @@ function readStoredTheme(): AppThemeId {
 
 type SemanticTheme = { [K in keyof typeof semantic.dark]: string };
 
+/**
+ * Couleurs communes aux thèmes clairs. Chaque couleur de texte atteint au moins
+ * 4,5:1 (WCAG AA) sur le fond le plus défavorable des deux thèmes clairs
+ * (Sépia « enfoncé », #E2D3B4).
+ *
+ * Sur fond clair, le rôle des deux ors s'inverse : `goldBright` sert
+ * d'accent appuyé (badges, chiffres, onglet actif) et doit donc être le plus
+ * FONCÉ des deux, alors qu'il est le plus lumineux sur le thème Nuit.
+ */
 const light = {
+  gold: "#715732", // 4,6:1 au pire
+  goldBright: "#624B2B", // 5,5:1 au pire
   danger: "#8E4242",
-  success: "#4F6B4C",
-  warning: "#8A6534",
-  info: "#4E637F",
+  success: "#496246",
+  warning: "#75562C",
+  info: "#495D77",
   textOnGold: "#241B0D",
   overlay: "rgba(42,33,27,0.45)",
 };
@@ -51,11 +62,9 @@ const THEMES: Record<AppThemeId, SemanticTheme> = {
     surfaceSunken: "#E2D3B4",
     textPrimary: readingThemes.sepia.text,
     textSecondary: "#5B4B3C",
-    textMuted: readingThemes.sepia.textMuted,
+    textMuted: "#6B5947", // readingThemes.sepia.textMuted ne tient pas 4,5:1 sur les fonds enfoncés
     border: "rgba(73,58,51,0.20)",
     borderStrong: "rgba(140,117,80,0.45)",
-    gold: readingThemes.sepia.accent,
-    goldBright: "#A8874F",
   },
   ivory: {
     ...light,
@@ -69,8 +78,6 @@ const THEMES: Record<AppThemeId, SemanticTheme> = {
     textMuted: readingThemes.ivory.textMuted,
     border: "rgba(73,58,51,0.18)",
     borderStrong: "rgba(140,117,80,0.42)",
-    gold: readingThemes.ivory.accent,
-    goldBright: "#A8874F",
   },
 };
 

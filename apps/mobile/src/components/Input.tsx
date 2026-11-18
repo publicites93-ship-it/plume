@@ -107,12 +107,13 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: "rgba(197,164,106,0.28)",
+    // Sur fond clair, l'or translucide du thème Nuit tombait à 1,2:1 : champ invisible.
+    borderColor: isDarkTheme ? "rgba(197,164,106,0.28)" : withAlpha(theme.gold, 0.75),
     backgroundColor: withAlpha(theme.backgroundDeep, isDarkTheme ? 0.55 : 0.6),
     paddingHorizontal: spacing[4],
   },
   fieldError: {
-    borderColor: "rgba(199,124,124,0.7)",
+    borderColor: isDarkTheme ? "rgba(199,124,124,0.7)" : theme.danger,
   },
   multilineField: {
     alignItems: "flex-start",

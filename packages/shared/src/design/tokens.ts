@@ -172,7 +172,7 @@ export const readingThemes: Record<ReadingThemeId, ReadingTheme> = {
     surface: "#F5EAD5",
     text: "#3A2E24",
     textMuted: "#6F5D4A",
-    accent: "#8C6B3E",
+    accent: "#715732", // #8C6B3E n'atteignait que 3,75:1 sur ce fond
   },
   ivory: {
     id: "ivory",

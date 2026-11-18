@@ -275,7 +275,7 @@ export default function LearnScreen() {
           label="Voir la méthode complète"
           variant="ghost"
           size="sm"
-          onPress={() => router.push("/reglages")}
+          onPress={() => router.push("/methode")}
           style={styles.methodButton}
         />
       </Card>
