@@ -168,20 +168,20 @@ export const readingThemes: Record<ReadingThemeId, ReadingTheme> = {
   sepia: {
     id: "sepia",
     label: "Sépia",
-    background: "#EDE0C4",
-    surface: "#F5EAD5",
+    background: "#EDDCB8",
+    surface: "#F4E6C8",
     text: "#3A2E24",
-    textMuted: "#6F5D4A",
-    accent: "#715732", // #8C6B3E n'atteignait que 3,75:1 sur ce fond
+    textMuted: "#65533F",
+    accent: "#6B522F",
   },
   ivory: {
     id: "ivory",
     label: "Ivoire",
-    background: "#FAF5EA",
-    surface: "#FFFBF2",
-    text: "#2A211B",
-    textMuted: "#6B5B4B",
-    accent: "#8C6B3E",
+    background: "#FBFAF7",
+    surface: "#FFFFFF",
+    text: "#1F1B17",
+    textMuted: "#655A4F",
+    accent: "#715732",
   },
 };
 

@@ -24,11 +24,45 @@ import { trpc } from "@/lib/api";
 import { errorMessage } from "@/lib/errors";
 import { theme } from "@/theme";
 
+/** Sélections proposées en tête de la liste, avant les genres. */
+type SelectionKey = "trending" | "bestSellers" | "latest";
+const SELECTIONS: Array<{
+  key: SelectionKey;
+  label: string;
+  eyebrow: string;
+  icon: "flame-outline" | "trophy-outline" | "sparkles-outline";
+  empty: string;
+}> = [
+  {
+    key: "trending",
+    label: "Histoires du moment",
+    eyebrow: "Cette semaine",
+    icon: "flame-outline",
+    empty: "Aucune histoire n'a encore été lue ou aimée cette semaine.",
+  },
+  {
+    key: "bestSellers",
+    label: "Best-sellers",
+    eyebrow: "Les plus lues",
+    icon: "trophy-outline",
+    empty: "Aucune histoire publiée pour le moment.",
+  },
+  {
+    key: "latest",
+    label: "Nouveautés",
+    eyebrow: "Derniers chapitres publiés",
+    icon: "sparkles-outline",
+    empty: "Aucune histoire publiée pour le moment.",
+  },
+];
+
 export default function DiscoverScreen() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [genre, setGenre] = useState<string | undefined>();
+  // Une sélection OU un genre à la fois ; « Tous » vide les deux. Best-sellers par défaut.
+  const [selection, setSelection] = useState<SelectionKey | undefined>("bestSellers");
   const [status, setStatus] = useState<"ongoing" | "completed" | undefined>();
   const [limit, setLimit] = useState(12);
 
@@ -52,9 +86,18 @@ export default function DiscoverScreen() {
   // Un genre seul affiche son propre carrousel ; la recherche et l'état
   // basculent sur la liste complète filtrée.
   const genreOnly = Boolean(genre) && !debounced && !status;
+  const selectionOnly = Boolean(selection) && !genre && !debounced && !status;
   const discover = trpc.reading.discover.useQuery(undefined, { enabled: !filtering });
+  // `bestSellers` n'existe que sur une API à jour : sinon, repli sur « Les plus aimées ».
+  const selectionItems: Record<SelectionKey, StoryCardData[]> = {
+    trending: discover.data?.trending ?? [],
+    bestSellers: discover.data?.bestSellers ?? discover.data?.mostLoved ?? [],
+    latest: discover.data?.latest ?? [],
+  };
+  const activeSelection = SELECTIONS.find((item) => item.key === selection);
   const rows: Array<{ key: string; title: string; eyebrow: string; items: StoryCardData[] }> = [
     { key: "trending", title: "Histoires du moment", eyebrow: "Cette semaine", items: discover.data?.trending ?? [] },
+    { key: "bestSellers", title: "Best-sellers", eyebrow: "Les plus lues", items: selectionItems.bestSellers },
     { key: "forYou", title: "Selon vos goûts", eyebrow: "D'après vos favoris et lectures", items: discover.data?.forYou ?? [] },
     { key: "mostLoved", title: "Les plus aimées", eyebrow: "J'aime et favoris", items: discover.data?.mostLoved ?? [] },
     { key: "latest", title: "Nouveautés", eyebrow: "Derniers chapitres publiés", items: discover.data?.latest ?? [] },
@@ -74,7 +117,26 @@ export default function DiscoverScreen() {
     setSearch("");
     setDebounced("");
     setGenre(undefined);
+    setSelection(undefined);
     setStatus(undefined);
+  }
+
+  function pickSelection(key: SelectionKey) {
+    setSelection(key);
+    setGenre(undefined);
+    setStatus(undefined);
+  }
+
+  function pickGenre(item: string) {
+    setGenre(item);
+    setSelection(undefined);
+    setStatus(undefined);
+    setLimit(12);
+  }
+
+  function showAll() {
+    setGenre(undefined);
+    setSelection(undefined);
   }
 
   return (
@@ -113,22 +175,66 @@ export default function DiscoverScreen() {
 
       <View style={styles.filterBlock}>
         <Text variant="label" color={theme.textMuted}>
-          Genres
+          Sélections et genres
         </Text>
         <View style={styles.chips}>
-          <Chip label="Tous" selected={!genre} onPress={() => setGenre(undefined)} />
+          <Chip label="Tous" selected={!genre && !selection} onPress={showAll} />
+          {SELECTIONS.map((item) => (
+            <Chip
+              key={item.key}
+              label={item.label}
+              icon={item.icon}
+              selected={!genre && selection === item.key}
+              onPress={() => pickSelection(item.key)}
+            />
+          ))}
           {GENRES.map((item) => (
             <Chip
               key={item}
               label={item}
               selected={genre === item}
-              onPress={() => setGenre(genre === item ? undefined : item)}
+              onPress={() => (genre === item ? showAll() : pickGenre(item))}
             />
           ))}
         </View>
       </View>
 
-      {genreOnly ? (
+      {selectionOnly && activeSelection ? (
+        <View style={styles.carousel}>
+          <SectionHeader title={activeSelection.label} eyebrow={activeSelection.eyebrow} />
+          {discover.isLoading ? (
+            <LoadingState label={`Ouverture de « ${activeSelection.label} »…`} />
+          ) : discover.isError ? (
+            <ErrorState message={errorMessage(discover.error)} onRetry={() => void discover.refetch()} />
+          ) : selectionItems[activeSelection.key].length === 0 ? (
+            <EmptyState
+              icon="albums-outline"
+              title="Rien pour l'instant"
+              message={activeSelection.empty}
+              actionLabel="Voir toutes les histoires"
+              onAction={showAll}
+            />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.carouselContent}
+              accessibilityLabel={activeSelection.label}
+            >
+              {selectionItems[activeSelection.key].map((story) => (
+                <StoryTile
+                  key={story.id}
+                  story={story}
+                  width={132}
+                  onPress={() =>
+                    router.push({ pathname: "/histoire-publique/[id]", params: { id: story.id } })
+                  }
+                />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      ) : genreOnly ? (
         <View style={styles.carousel}>
           <SectionHeader
             title={genre ?? ""}
@@ -144,7 +250,7 @@ export default function DiscoverScreen() {
               title="Aucune histoire dans ce genre"
               message="Choisissez un autre genre ou revenez à toutes les histoires."
               actionLabel="Voir tous les genres"
-              onAction={() => setGenre(undefined)}
+              onAction={showAll}
             />
           ) : (
             <>
@@ -204,7 +310,7 @@ export default function DiscoverScreen() {
           ))
       ) : null}
 
-      {!genreOnly ? (
+      {!genreOnly && !selectionOnly ? (
         <>
           <View style={styles.statusRow}>
             <Chip

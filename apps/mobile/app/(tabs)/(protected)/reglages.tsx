@@ -34,6 +34,10 @@ export default function SettingsScreen() {
   const updatePreferences = trpc.auth.updatePreferences.useMutation();
   const setGoal = trpc.auth.setGoal.useMutation();
   const [pendingTheme, setPendingTheme] = useState<AppThemeId | null>(null);
+  const [applyingTheme, setApplyingTheme] = useState(false);
+  // Choix affiché tout de suite au toucher, sans attendre le serveur (qui peut
+  // mettre plusieurs dizaines de secondes à se réveiller).
+  const [goalDraft, setGoalDraft] = useState<"read" | "write" | "both" | null>(null);
   const changePassword = trpc.auth.changePassword.useMutation();
   const resendVerification = trpc.auth.resendVerification.useMutation();
   const exportData = trpc.auth.exportData.useMutation();
@@ -48,8 +52,6 @@ export default function SettingsScreen() {
   const setFontScale = useUiStore((state) => state.setFontScale);
   const readingTheme = useUiStore((state) => state.readingTheme);
   const setReadingTheme = useUiStore((state) => state.setReadingTheme);
-  const writingTheme = useUiStore((state) => state.writingTheme);
-  const setWritingTheme = useUiStore((state) => state.setWritingTheme);
   const reduceMotion = useUiStore((state) => state.reduceMotion);
   const setReduceMotion = useUiStore((state) => state.setReduceMotion);
   const applyRemote = useUiStore((state) => state.applyRemote);
@@ -166,6 +168,41 @@ export default function SettingsScreen() {
   }
 
   const preferences = me.data.preferences;
+  const savedGoal = (me.data.profile?.goal as "read" | "write" | "both" | null | undefined) ?? "both";
+
+  async function chooseGoal(goal: "read" | "write" | "both") {
+    if (goal === (goalDraft ?? savedGoal)) return;
+    setGoalDraft(goal);
+    try {
+      await setGoal.mutateAsync({ goal });
+      await queryClient.invalidateQueries();
+      toast("Profil mis à jour.", "success");
+    } catch (error) {
+      toast(errorMessage(error), "error");
+    } finally {
+      setGoalDraft(null);
+    }
+  }
+
+  async function applyTheme() {
+    if (!pendingTheme) return;
+    setApplyingTheme(true);
+    // Si l'application ne s'est pas relancée au bout de quelques secondes
+    // (serveur de développement injoignable, par exemple), on le dit.
+    const fallback = setTimeout(() => {
+      setApplyingTheme(false);
+      setPendingTheme(null);
+      toast("Thème enregistré. Fermez puis rouvrez Plume pour l'appliquer.", "info");
+    }, 6_000);
+    try {
+      await setAppTheme(pendingTheme);
+    } catch (error) {
+      clearTimeout(fallback);
+      setApplyingTheme(false);
+      setPendingTheme(null);
+      toast(`Thème enregistré, mais la relance a échoué (${errorMessage(error)}). Fermez puis rouvrez Plume.`, "error");
+    }
+  }
 
   return (
     <Screen>
@@ -176,25 +213,26 @@ export default function SettingsScreen() {
         subtitle="Confort de lecture, écriture et données personnelles."
       />
 
-      <SectionHeader title="Mon profil" eyebrow="Lire et écrire" />
+      <SectionHeader title="Ce que je fais sur Plume" eyebrow="Mon profil" />
       <Card style={styles.card}>
+        <Text variant="caption" color={theme.textSecondary}>
+          Indique si vous venez surtout pour lire, pour écrire, ou les deux. Ce choix ne change pas
+          les couleurs : le thème se règle juste en dessous.
+        </Text>
         <Segmented
           options={[
             { value: "read", label: "Lire" },
             { value: "write", label: "Écrire" },
             { value: "both", label: "Les deux" },
           ]}
-          value={(me.data?.profile?.goal as "read" | "write" | "both" | null | undefined) ?? "both"}
-          onChange={async (goal) => {
-            try {
-              await setGoal.mutateAsync({ goal });
-              await queryClient.invalidateQueries();
-              toast("Profil mis à jour.", "success");
-            } catch (error) {
-              toast(errorMessage(error), "error");
-            }
-          }}
+          value={goalDraft ?? savedGoal}
+          onChange={(goal) => void chooseGoal(goal)}
         />
+        {setGoal.isPending ? (
+          <Text variant="caption" color={theme.gold}>
+            Enregistrement…
+          </Text>
+        ) : null}
         <Text variant="caption" color={theme.textMuted}>
           Le Studio d'écriture (fiches, relations, chronologie) est réservé aux profils « Écrire »
           et « Les deux ». Changer de profil ne supprime rien.
@@ -232,29 +270,32 @@ export default function SettingsScreen() {
           })}
         </View>
         <Text variant="caption" color={theme.textMuted}>
-          S'applique à tous les écrans. L'ambiance de lecture des chapitres se règle à part, dans
-          le lecteur.
+          Couleurs de tous les écrans de Plume. Le fond des pages de lecture se règle à part, plus
+          bas (« Pages de lecture »).
         </Text>
       </Card>
 
       <Sheet
         visible={Boolean(pendingTheme)}
-        onClose={() => setPendingTheme(null)}
+        onClose={() => {
+          if (!applyingTheme) setPendingTheme(null);
+        }}
         title="Changer de thème ?"
         subtitle="L'application va se relancer pour appliquer le thème partout. Vos textes sont enregistrés."
         footer={
           <Button
             label="Appliquer et relancer"
             icon="color-palette-outline"
-            onPress={() => {
-              if (pendingTheme) void setAppTheme(pendingTheme);
-            }}
+            loading={applyingTheme}
+            onPress={() => void applyTheme()}
             fullWidth
           />
         }
       >
         <Text variant="caption" color={theme.textMuted}>
-          Thème choisi : {APP_THEME_OPTIONS.find((option) => option.id === pendingTheme)?.label}
+          {applyingTheme
+            ? "Relance en cours…"
+            : `Thème choisi : ${APP_THEME_OPTIONS.find((option) => option.id === pendingTheme)?.label ?? ""}`}
         </Text>
       </Sheet>
 
@@ -290,10 +331,11 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      <SectionHeader title="Ambiances" eyebrow="Lecture et écriture" />
+      <SectionHeader title="Pages de lecture" eyebrow="Lecteur de chapitres" />
       <Card style={styles.card}>
-        <Text variant="label" color={theme.textSecondary}>
-          Thème de lecture
+        <Text variant="caption" color={theme.textMuted}>
+          Fond et couleur du texte quand vous lisez un chapitre. Indépendant du thème de
+          l'application ; se change aussi depuis le lecteur.
         </Text>
         <View style={styles.themeRow}>
           {(["night", "sepia", "ivory"] as const).map((themeId) => {
@@ -321,42 +363,13 @@ export default function SettingsScreen() {
                 <Text variant="caption" color={option.textMuted}>
                   {option.label}
                 </Text>
+                {selected ? (
+                  <Ionicons name="checkmark-circle" size={16} color={option.accent} />
+                ) : null}
               </Pressable>
             );
           })}
         </View>
-        <Text variant="label" color={theme.textSecondary} style={styles.subLabel}>
-          Thème d'écriture
-        </Text>
-        <View style={styles.chips}>
-          {(["night", "sepia", "ivory"] as const).map((themeId) => {
-            const selected = writingTheme === themeId;
-            return (
-              <Pressable
-                key={themeId}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`Thème d'écriture ${getReadingTheme(themeId).label}`}
-                onPress={() => {
-                  setWritingTheme(themeId);
-                  void syncPreference({ writingTheme: themeId });
-                }}
-                style={[styles.chip, selected && styles.chipSelected]}
-              >
-                <Text
-                  variant="caption"
-                  color={selected ? theme.textOnGold : theme.textSecondary}
-                >
-                  {getReadingTheme(themeId).label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <InlineNotice tone="info">
-          Le thème d'écriture prépare une ambiance de page. L'éditeur de cette version conserve un
-          fond nuit pour garantir le contraste du texte et des contrôles.
-        </InlineNotice>
       </Card>
 
       <SectionHeader title="Mouvement et confort" eyebrow="Accessibilité" />
@@ -584,27 +597,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   themeSelected: {
-    borderWidth: 2,
-  },
-  subLabel: {
-    marginTop: spacing[2],
-  },
-  chips: {
-    flexDirection: "row",
-    gap: 7,
-  },
-  chip: {
-    flex: 1,
-    minHeight: 38,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(197,164,106,0.24)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipSelected: {
-    backgroundColor: palette.gold,
-    borderColor: palette.gold,
+    borderWidth: 3,
   },
   switchPad: {
     paddingHorizontal: spacing[4],

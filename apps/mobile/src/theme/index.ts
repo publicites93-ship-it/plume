@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { DevSettings, Platform } from "react-native";
 import { reloadAppAsync } from "expo";
 import * as SecureStore from "expo-secure-store";
 import {
@@ -32,21 +32,17 @@ function readStoredTheme(): AppThemeId {
 type SemanticTheme = { [K in keyof typeof semantic.dark]: string };
 
 /**
- * Couleurs communes aux thèmes clairs. Chaque couleur de texte atteint au moins
- * 4,5:1 (WCAG AA) sur le fond le plus défavorable des deux thèmes clairs
- * (Sépia « enfoncé », #E2D3B4).
+ * Thèmes clairs. Chaque couleur de texte atteint au moins 4,5:1 (WCAG AA) sur
+ * TOUS les fonds de son thème, y compris le plus foncé (« enfoncé »).
  *
- * Sur fond clair, le rôle des deux ors s'inverse : `goldBright` sert
- * d'accent appuyé (badges, chiffres, onglet actif) et doit donc être le plus
- * FONCÉ des deux, alors qu'il est le plus lumineux sur le thème Nuit.
+ * Sépia et Ivoire doivent se distinguer au premier coup d'œil : Sépia est un
+ * papier jauni, chaud et doré ; Ivoire un blanc cassé presque neutre.
+ *
+ * Sur fond clair, le rôle des deux ors s'inverse : `goldBright` sert d'accent
+ * appuyé (badges, chiffres, onglet actif) et doit donc être le plus FONCÉ des
+ * deux, alors qu'il est le plus lumineux sur le thème Nuit.
  */
 const light = {
-  gold: "#715732", // 4,6:1 au pire
-  goldBright: "#624B2B", // 5,5:1 au pire
-  danger: "#8E4242",
-  success: "#496246",
-  warning: "#75562C",
-  info: "#495D77",
   textOnGold: "#241B0D",
   overlay: "rgba(42,33,27,0.45)",
 };
@@ -55,29 +51,41 @@ const THEMES: Record<AppThemeId, SemanticTheme> = {
   night: semantic.dark,
   sepia: {
     ...light,
-    background: readingThemes.sepia.background,
-    backgroundDeep: "#E4D5B8",
-    surface: readingThemes.sepia.surface,
-    surfaceRaised: "#FAF2E2",
-    surfaceSunken: "#E2D3B4",
-    textPrimary: readingThemes.sepia.text,
+    background: "#EDDCB8",
+    backgroundDeep: "#E6D2A9",
+    surface: "#F4E6C8",
+    surfaceRaised: "#F8EDD5",
+    surfaceSunken: "#E2CDA2",
+    textPrimary: "#3A2E24",
     textSecondary: "#5B4B3C",
-    textMuted: "#6B5947", // readingThemes.sepia.textMuted ne tient pas 4,5:1 sur les fonds enfoncés
-    border: "rgba(73,58,51,0.20)",
-    borderStrong: "rgba(140,117,80,0.45)",
+    textMuted: "#65533F",
+    border: "rgba(92,70,40,0.24)",
+    borderStrong: "rgba(107,82,47,0.50)",
+    gold: "#6B522F",
+    goldBright: "#5C4628",
+    danger: "#8A3F3F",
+    success: "#455D42",
+    warning: "#6F5129",
+    info: "#455870",
   },
   ivory: {
     ...light,
-    background: readingThemes.ivory.background,
-    backgroundDeep: "#F1E6D1",
-    surface: readingThemes.ivory.surface,
+    background: "#FBFAF7",
+    backgroundDeep: "#F7F6F2",
+    surface: "#FFFFFF",
     surfaceRaised: "#FFFFFF",
-    surfaceSunken: "#EFE6D3",
-    textPrimary: readingThemes.ivory.text,
-    textSecondary: "#5B4B3C",
-    textMuted: readingThemes.ivory.textMuted,
-    border: "rgba(73,58,51,0.18)",
-    borderStrong: "rgba(140,117,80,0.42)",
+    surfaceSunken: "#EEECE6",
+    textPrimary: "#1F1B17",
+    textSecondary: "#4A4038",
+    textMuted: "#655A4F",
+    border: "rgba(60,52,44,0.16)",
+    borderStrong: "rgba(113,87,50,0.42)",
+    gold: "#715732",
+    goldBright: "#624B2B",
+    danger: "#8E4242",
+    success: "#496246",
+    warning: "#75562C",
+    info: "#495D77",
   },
 };
 
@@ -114,8 +122,14 @@ export async function setAppTheme(id: AppThemeId): Promise<void> {
     globalThis.location?.reload();
     return;
   }
-  await SecureStore.setItem(THEME_KEY, id);
-  await reloadAppAsync("Changement de thème");
+  await SecureStore.setItemAsync(THEME_KEY, id);
+  try {
+    await reloadAppAsync("Changement de thème");
+  } catch (error) {
+    // Expo Go / développement : relance par le serveur Metro.
+    if (__DEV__) DevSettings.reload("Changement de thème");
+    else throw error;
+  }
 }
 
 export const APP_THEME_OPTIONS: Array<{ id: AppThemeId; label: string; background: string; text: string }> = [

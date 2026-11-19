@@ -50,12 +50,14 @@ describe("écran Découvrir", () => {
     await reader.caller.reading.saveProgress({ storyId: fantasy.id, chapterId: fantasy.chapterId, progress: 0.5 });
 
     const anonymous = await publicCaller(context.db).reading.discover();
-    const all = [...anonymous.trending, ...anonymous.mostLoved, ...anonymous.latest];
+    const all = [...anonymous.trending, ...anonymous.mostLoved, ...anonymous.bestSellers, ...anonymous.latest];
     expect(all.some((item) => item.id === hidden.id)).toBe(false);
     expect(anonymous.forYou).toEqual([]);
     expect(anonymous.trending[0]?.id).toBe(romance.id);
     expect(anonymous.mostLoved.map((item) => item.id)).toEqual([romance.id]);
     expect(anonymous.mostLoved[0]).toMatchObject({ likes: 1, favorites: 1, readers: 0 });
+    // Best-sellers : d'abord les lecteurs (Brumes), puis J'aime et favoris (Lettres).
+    expect(anonymous.bestSellers.map((item) => item.id)).toEqual([fantasy.id, romance.id, fantasy2.id]);
     const brumes = anonymous.latest.find((item) => item.id === fantasy.id);
     expect(brumes).toMatchObject({ likes: 0, favorites: 0, readers: 1 });
     expect(anonymous.latest).toHaveLength(3);

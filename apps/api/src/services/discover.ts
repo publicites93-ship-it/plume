@@ -40,7 +40,7 @@ export async function discoverRows(db: Database, userId?: string) {
     .limit(300);
 
   if (candidates.length === 0) {
-    return { trending: [], mostLoved: [], latest: [], forYou: [], byGenre: [] };
+    return { trending: [], mostLoved: [], bestSellers: [], latest: [], forYou: [], byGenre: [] };
   }
   const ids = candidates.map((row) => row.story.id);
   const since = new Date(Date.now() - WEEK_MS);
@@ -111,6 +111,15 @@ export async function discoverRows(db: Database, userId?: string) {
     .filter((card) => card.likes + card.favorites > 0)
     .sort((a, b) => b.likes + 2 * b.favorites - (a.likes + 2 * a.favorites))
     .slice(0, ROW_SIZE);
+  // Best-sellers : Plume ne vend pas d'histoires ; on classe donc par lecteurs
+  // distincts (toujours), puis par J'aime et favoris. Aucune histoire n'est
+  // écartée : la rangée n'est jamais vide tant qu'une histoire est publiée.
+  const bestSellers = [...cards]
+    .sort(
+      (a, b) =>
+        b.readers - a.readers || b.likes + 2 * b.favorites - (a.likes + 2 * a.favorites),
+    )
+    .slice(0, ROW_SIZE);
   const latest = [...cards]
     .sort((a, b) => (b.lastChapterAt?.getTime() ?? 0) - (a.lastChapterAt?.getTime() ?? 0))
     .slice(0, ROW_SIZE);
@@ -162,6 +171,7 @@ export async function discoverRows(db: Database, userId?: string) {
   return {
     trending: strip(trending),
     mostLoved: strip(mostLoved),
+    bestSellers: strip(bestSellers),
     latest: strip(latest),
     forYou: strip(forYou),
     byGenre: byGenre.map((row) => ({ genre: row.genre, items: strip(row.items) })),
