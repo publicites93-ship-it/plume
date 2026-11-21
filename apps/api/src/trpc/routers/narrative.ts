@@ -21,6 +21,7 @@ import {
   deleteLocation,
   deletePlot,
   listNarrative,
+  reorderEvents,
   savePlan,
   updateCharacter,
   updateEvent,
@@ -95,6 +96,10 @@ export const narrativeRouter = router({
   createEvent: studioProcedure
     .input(timelineEventSchema)
     .mutation(async ({ ctx, input }) => createEvent(ctx.db, ctx.userId, input)),
+
+  reorderEvents: studioProcedure
+    .input(z.object({ storyId: z.string().uuid(), previous: z.array(z.string().uuid()), ordered: z.array(z.string().uuid()) }))
+    .mutation(({ ctx, input }) => reorderEvents(ctx.db, ctx.userId, input)),
 
   updateEvent: studioProcedure
     .input(timelineEventSchema.partial().extend(idAndStory.shape))

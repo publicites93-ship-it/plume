@@ -57,6 +57,13 @@
       "when": 1794968482237,
       "tag": "0007_square_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795176944074,
+      "tag": "0008_claude_reservations",
+      "breakpoints": true
     }
   ]
 }

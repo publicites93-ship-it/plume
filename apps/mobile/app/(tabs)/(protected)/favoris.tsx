@@ -107,7 +107,7 @@ export default function BookmarksScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Lire ${row.chapterTitle}`}
                     onPress={() =>
-                      router.push({ pathname: "/lecture/[id]", params: { id: row.bookmark.chapterId } })
+                      router.push({ pathname: "/lecture/[id]", params: { id: row.bookmark.chapterId, position: String(row.bookmark.position), bookmark: row.bookmark.id } })
                     }
                     variant="caption"
                     color={theme.gold}

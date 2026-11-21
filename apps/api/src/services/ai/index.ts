@@ -5,6 +5,7 @@ import { GeminiProvider } from "./gemini";
 import { MockPedagogicalProvider } from "./mock";
 import type { AIProvider } from "./provider";
 import type { PlanId } from "@plume/shared";
+import type { BudgetOwner } from "./budget";
 
 const providers = new Map<string, AIProvider>();
 
@@ -28,7 +29,7 @@ export function coachStatus(): {
  * Fournisseur du coach. Avec Claude, les comptes Gratuit utilisent un modèle
  * moins coûteux (ANTHROPIC_MODEL_FREE) ; les formules payantes, ANTHROPIC_MODEL.
  */
-export function getAIProvider(plan: PlanId = "plus"): AIProvider {
+export function getAIProvider(plan: PlanId = "plus", owner?: BudgetOwner): AIProvider {
   const config = getConfig();
   const model =
     config.AI_PROVIDER === "anthropic"
@@ -36,7 +37,8 @@ export function getAIProvider(plan: PlanId = "plus"): AIProvider {
         ? config.ANTHROPIC_MODEL_FREE
         : config.ANTHROPIC_MODEL
       : config.AI_PROVIDER;
-  const cached = providers.get(model);
+  const scoped = !!owner && config.AI_PROVIDER === "anthropic";
+  const cached = !scoped && providers.get(model);
   if (cached) return cached;
   if (!coachStatus().available) {
     // Le détail technique va au journal serveur ; l'auteur reçoit un message actionnable.
@@ -49,11 +51,11 @@ export function getAIProvider(plan: PlanId = "plus"): AIProvider {
   }
   const provider =
     config.AI_PROVIDER === "anthropic"
-      ? new AnthropicProvider(model)
+      ? new AnthropicProvider(model, owner)
       : config.AI_PROVIDER === "gemini"
         ? new GeminiProvider()
         : new MockPedagogicalProvider();
-  providers.set(model, provider);
+  if (!scoped) providers.set(model, provider);
   return provider;
 }
 

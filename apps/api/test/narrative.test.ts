@@ -21,6 +21,20 @@ afterAll(async () => {
 });
 
 describe("bibliothèque narrative", () => {
+  it("enregistre la frise entière et refuse un ordre périmé ou incomplet", async () => {
+    const api = author.caller.narrative;
+    const story = await author.caller.stories.create({ title: "Frise privée", visibility: "private" });
+    const storyId = story.id;
+    const a = (await api.createEvent({ storyId, title: "Départ", narrativeOrder: 1 }))!;
+    const b = (await api.createEvent({ storyId, title: "Retour", narrativeOrder: 2 }))!;
+    const previous = [a.id, b.id], ordered = [b.id, a.id];
+    await api.reorderEvents({ storyId, previous, ordered });
+    await expect(api.reorderEvents({ storyId, previous, ordered })).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(api.reorderEvents({ storyId, previous: ordered, ordered: [a.id, a.id] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const other = await registerUser(context.db);
+    await expect(other.caller.narrative.reorderEvents({ storyId, previous: ordered, ordered: previous })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await api.list({ storyId })).events.map(e => e.id)).toEqual(ordered);
+  });
   it("crée et met à jour une fiche personnage complète", async () => {
     const character = (await author.caller.narrative.createCharacter({
       storyId,

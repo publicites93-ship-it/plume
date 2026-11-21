@@ -39,6 +39,14 @@ afterAll(async () => {
 });
 
 describe("coach littéraire (simulation locale)", () => {
+  it("refuse les deux analyses de chapitre surdimensionnées sans débiter de crédit", async () => {
+    const long = await author.caller.stories.createChapter({ storyId, title: "Chapitre long", content: "mot ".repeat(15_001) });
+    const usage = () => context.db.select().from(aiUsageRecords).where(eq(aiUsageRecords.userId, author.userId));
+    const before = await usage();
+    await expect(author.caller.ai.analyzeChapter({ storyId, chapterId: long.id, skill: "dialogues", scope: "chapter" })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("60 000") });
+    await expect(author.caller.ai.analyzeStory({ storyId, chapterId: long.id })).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("60 000") });
+    expect(await usage()).toHaveLength(before.length);
+  });
   it("produit un diagnostic structuré avec des citations réelles", async () => {
     const analysis = await author.caller.ai.analyzeChapter({
       storyId,

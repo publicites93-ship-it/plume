@@ -41,6 +41,14 @@ function logAiFailure(action: string, error: unknown): void {
   console.error(`[plume] ${action} : ${name}${code ? ` (${code})` : ""}`);
 }
 
+// Limite appliquée au passage réellement envoyé, avant snapshot, quota ou fournisseur.
+function requireBoundedManuscript(text: string) {
+  if (text.length > 60_000) throw new TRPCError({
+    code: "BAD_REQUEST",
+    message: "Ce chapitre dépasse 60 000 caractères. Choisissez le diagnostic d’un extrait plus court. Aucun crédit débité.",
+  });
+}
+
 export async function analyzeChapter(
   db: Database,
   userId: string,
@@ -81,6 +89,7 @@ export async function analyzeChapter(
       message: "L'extrait sélectionné ne correspond pas au chapitre enregistré.",
     });
   }
+  requireBoundedManuscript(manuscript);
   if (countWords(manuscript) < 30) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -118,7 +127,7 @@ export async function analyzeChapter(
   }
 
   const quota1 = await assertAiQuota(db, userId, "chapter_diagnostic");
-  const provider = getAIProvider(quota1.plan);
+  const provider = getAIProvider(quota1.plan, { db, userId });
   const [analysis] = await db
     .insert(aiAnalyses)
     .values({
@@ -263,6 +272,7 @@ export async function analyzeStory(
   if (!row || row.story.authorId !== userId) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Chapitre introuvable." });
   }
+  requireBoundedManuscript(row.chapter.content);
   if (countWords(row.chapter.content) < 30) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -300,7 +310,7 @@ export async function analyzeStory(
   }
 
   const quota2 = await assertAiQuota(db, userId, "multi_chapter_analysis");
-  const provider = getAIProvider(quota2.plan);
+  const provider = getAIProvider(quota2.plan, { db, userId });
   let draft;
   try {
     draft = await provider.analyzeStory({
@@ -648,7 +658,7 @@ export async function sendCoachingMessage(
       .limit(1)
   )[0];
 
-  const provider = getAIProvider(quota3.plan);
+  const provider = getAIProvider(quota3.plan, { db, userId });
   let draft;
   try {
     draft = await provider.coachReply({
@@ -746,7 +756,7 @@ export async function reviewExerciseAttempt(
   }
 
   const quota4 = await assertAiQuota(db, userId, "exercise_generation");
-  const provider = getAIProvider(quota4.plan);
+  const provider = getAIProvider(quota4.plan, { db, userId });
   let draft;
   try {
     draft = await provider.reviewExercise({

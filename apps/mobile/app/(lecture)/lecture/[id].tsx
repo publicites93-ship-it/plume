@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -32,8 +33,14 @@ import { getReadingTheme, palette, theme } from "@/theme";
 import { useUiStore } from "@/lib/ui";
 
 export default function ReaderScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const chapterId = String(id ?? "");
+  const { id, position, bookmark } = useLocalSearchParams<{ id: string; position?: string; bookmark?: string }>();
+  return <Reader key={`${id}:${bookmark ?? ""}:${position ?? ""}`} chapterId={String(id ?? "")} position={position} bookmark={bookmark} />;
+}
+
+type Place = { ratio: number; block?: number; fraction?: number; version?: number };
+const clamp = (n: number) => Math.max(0, Math.min(1, n));
+
+function Reader({ chapterId, position, bookmark }: { chapterId: string; position?: string; bookmark?: string }) {
   const router = useRouter();
   const readingTheme = useUiStore((state) => state.readingTheme);
   const setReadingTheme = useUiStore((state) => state.setReadingTheme);
@@ -43,7 +50,6 @@ export default function ReaderScreen() {
   const setReadingFont = useUiStore((state) => state.setReadingFont);
 
   const chapterQuery = trpc.reading.chapter.useQuery({ chapterId }, { enabled: Boolean(chapterId) });
-  const saveProgress = trpc.reading.saveProgress.useMutation();
   const addBookmark = trpc.reading.addBookmark.useMutation();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -51,15 +57,64 @@ export default function ReaderScreen() {
   const [note, setNote] = useState("");
   const [progress, setProgress] = useState(0);
 
-  const lastSaved = useRef(0);
+  const utils = trpc.useUtils();
+  const storyId = chapterQuery.data?.story.id;
+  const story = trpc.reading.story.useQuery({ storyId: storyId ?? "" }, { enabled: !!storyId && position === undefined });
+  const userId = trpc.auth.me.useQuery().data?.user.id;
+  const storageKey = userId ? `plume.reader.${userId}.${chapterId}` : undefined;
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const sizes = useRef({ viewport: 0, content: 0, prose: 0 });
+  const blocks = useRef(new Map<number, { top: number; height: number }>());
+  const place = useRef<Place | null>(null);
+  const touched = useRef(false);
+  const pending = useRef<(() => void) | null>(null);
+  const frame = useRef<number | undefined>(undefined);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentProgress = useRef(0);
 
   const chapter = chapterQuery.data;
 
+  function restore() {
+    if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const p = place.current;
+      const { viewport, content, prose } = sizes.current;
+      if (!p || !viewport || !content) return;
+      const range = Math.max(0, content - viewport);
+      const block = p.version === chapter?.chapter.version && p.block !== undefined ? blocks.current.get(p.block) : undefined;
+      const y = block ? Math.min(range, prose + block.top + (p.fraction ?? 0) * block.height) : p.ratio * range;
+      touched.current = false;
+      scroll.current?.scrollTo({ y, animated: false });
+      currentProgress.current = range ? clamp(y / range) : 0;
+      setProgress(currentProgress.current);
+    });
+  }
+
+  const remote = story.data?.progress;
+  useEffect(() => {
+    if (!storageKey || !chapter || (position === undefined && !story.data && !story.isError)) return;
+    let active = true;
+    const ratio = position !== undefined ? clamp((Number(position) || 0) / 10000) : remote?.chapterId === chapterId ? remote.progress : 0;
+    void AsyncStorage.getItem(bookmark ? `${storageKey}.${bookmark}` : storageKey).then(raw => {
+      if (!active || place.current || touched.current) return;
+      let p: Place = { ratio };
+      if (raw) {
+        try {
+          const local: Place = JSON.parse(raw);
+          if (Number.isFinite(local.ratio) && (story.isError || Math.abs(local.ratio - ratio) < 0.0002)) p = local;
+        } catch { /* Ancienne position illisible : reprendre au pourcentage. */ }
+      }
+      place.current = p;
+      restore();
+    }).catch(() => { if (active && !place.current && !touched.current) { place.current = { ratio }; restore(); } });
+    return () => { active = false; };
+  }, [storageKey, chapter, story.data, story.isError, position, bookmark]);
+
   useEffect(() => {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+      pending.current?.();
     };
   }, []);
 
@@ -67,33 +122,46 @@ export default function ReaderScreen() {
     currentProgress.current = next;
     setProgress(next);
     if (!chapter) return;
-    if (Math.abs(next - lastSaved.current) < 0.04 && next < 0.98) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      lastSaved.current = next;
-      saveProgress.mutate({
+    const point = place.current;
+    pending.current = () => {
+      pending.current = null;
+      if (storageKey && point) void AsyncStorage.setItem(storageKey, JSON.stringify(point)).catch(() => undefined);
+      void utils.client.reading.saveProgress.mutate({
         storyId: chapter.story.id,
         chapterId: chapter.chapter.id,
         progress: Math.min(1, Math.max(0, next)),
-      });
-    }, 900);
+      }).then(() => { void utils.reading.story.invalidate({ storyId: chapter.story.id }); void utils.reading.library.invalidate(); }).catch(() => undefined);
+    };
+    saveTimer.current = setTimeout(() => pending.current?.(), 900);
   }
 
   function onScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    if (!touched.current) return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const scrollable = Math.max(1, contentSize.height - layoutMeasurement.height);
-    queueProgress(Math.min(1, Math.max(0, contentOffset.y / scrollable)));
+    const ratio = clamp(contentOffset.y / scrollable);
+    const p: Place = { ratio, version: chapter?.chapter.version };
+    const y = contentOffset.y - sizes.current.prose;
+    for (const [index, b] of blocks.current) {
+      if (y >= b.top && y < b.top + b.height + 18) { p.block = index; p.fraction = (y - b.top) / Math.max(1, b.height); break; }
+    }
+    place.current = p;
+    queueProgress(ratio);
   }
 
   async function saveBookmark() {
     if (!chapter) return;
     try {
-      await addBookmark.mutateAsync({
+      const anchor = place.current;
+      const saved = await addBookmark.mutateAsync({
         storyId: chapter.story.id,
         chapterId: chapter.chapter.id,
         position: Math.round(currentProgress.current * 10_000),
         note: note.trim() || null,
       });
+      if (saved && storageKey && anchor) void AsyncStorage.setItem(`${storageKey}.${saved.id}`, JSON.stringify({ ...anchor, ratio: Math.round(currentProgress.current * 10000) / 10000 })).catch(() => undefined);
+      void utils.reading.bookmarks.invalidate();
       setBookmarkOpen(false);
       setNote("");
       toast("Signet posé dans ce chapitre.", "success");
@@ -177,6 +245,10 @@ export default function ReaderScreen() {
       </View>
 
       <ScrollView
+        ref={scroll}
+        onScrollBeginDrag={() => { touched.current = true; }}
+        onContentSizeChange={(_w, h) => { sizes.current.content = h; restore(); }}
+        onLayout={e => { sizes.current.viewport = e.nativeEvent.layout.height; restore(); }}
         style={styles.flex}
         contentContainerStyle={styles.content}
         onScroll={onScroll}
@@ -204,12 +276,13 @@ export default function ReaderScreen() {
           <View style={[styles.diamond, { backgroundColor: paletteForReading.accent }]} />
           <View style={[styles.line, { backgroundColor: paletteForReading.accent }]} />
         </View>
-        <Prose
+        <View onLayout={e => { sizes.current.prose = e.nativeEvent.layout.y; restore(); }}><Prose
+          onBlockLayout={(i, top, height) => { blocks.current.set(i, { top, height }); if (place.current?.block === i) restore(); }}
           content={chapter.chapter.content}
           color={paletteForReading.text}
           mutedColor={paletteForReading.textMuted}
           baseSize={18}
-        />
+        /></View>
 
         <View style={styles.endMark}>
           <View style={[styles.line, { backgroundColor: paletteForReading.accent }]} />

@@ -2,6 +2,8 @@ import type { z } from "zod";
 import { getConfig } from "../../config";
 import { GeminiProvider } from "./gemini";
 import { ProviderUnavailableError } from "./provider";
+import { reserveClaude, settleClaude, type BudgetOwner } from "./budget";
+import { estimateCostMicros } from "../plans";
 
 /** Clé Claude : ANTHROPIC_API_KEY, ou CLAUDE_API_KEY pour compatibilité. */
 export function anthropicApiKey(): string | undefined {
@@ -15,7 +17,7 @@ export function anthropicApiKey(): string | undefined {
  * réseau diffère. Les citations restent vérifiées mot pour mot par analysis.ts.
  */
 export class AnthropicProvider extends GeminiProvider {
-  constructor(model: string = getConfig().ANTHROPIC_MODEL) {
+  constructor(model: string = getConfig().ANTHROPIC_MODEL, private readonly owner?: BudgetOwner) {
     const apiKey = anthropicApiKey();
     if (!apiKey) {
       throw new ProviderUnavailableError("AI_PROVIDER=anthropic sans clé Claude.");
@@ -28,6 +30,14 @@ export class AnthropicProvider extends GeminiProvider {
     schema: z.ZodType<T>,
     maxOutputTokens: number,
   ): Promise<{ data: T; inputTokens: number; outputTokens: number }> {
+    // Inclut aussi consignes, historique et noms de la bible (pas seulement le chapitre).
+    if (prompt.length > 96_000) throw new ProviderUnavailableError(
+      "Le contexte dépasse la taille maximale autorisée pour un appel Claude.",
+    );
+    const cap = getConfig().CLAUDE_USER_MONTHLY_CAP_MICROS;
+    if (cap !== undefined && !this.owner) throw new ProviderUnavailableError("Contexte budgétaire manquant.");
+    const reservation = cap !== undefined && this.owner
+      ? await reserveClaude(this.owner, this.model, prompt, maxOutputTokens + 2048, cap) : null;
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -46,6 +56,9 @@ export class AnthropicProvider extends GeminiProvider {
     });
 
     if (!response.ok) {
+      if (reservation && this.owner && [400, 401, 403, 404, 413, 429].includes(response.status)) {
+        await settleClaude(this.owner.db, reservation, 0);
+      }
       // Journal d'exploitation : type et message d'erreur d'Anthropic uniquement.
       let reason = "";
       try {
@@ -65,6 +78,11 @@ export class AnthropicProvider extends GeminiProvider {
       stop_reason?: string;
       usage?: { input_tokens?: number; output_tokens?: number };
     };
+    const input = payload.usage?.input_tokens, output = payload.usage?.output_tokens;
+    if (reservation && this.owner && typeof input === "number" && typeof output === "number" &&
+        Number.isSafeInteger(input) && Number.isSafeInteger(output) && input >= 0 && output >= 0) {
+      await settleClaude(this.owner.db, reservation, estimateCostMicros(this.model, input, output));
+    }
     const text = (payload.content ?? [])
       .filter((block) => block.type === "text")
       .map((block) => block.text ?? "")

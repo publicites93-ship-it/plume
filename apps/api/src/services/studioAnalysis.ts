@@ -234,7 +234,7 @@ async function runChapterAnalysis(
     db.select().from(locations).where(eq(locations.storyId, story.id)),
   ]);
   // Extraction : toujours le modèle économique (Haiku avec Claude), quelle que soit la formule.
-  const provider = getAIProvider("free");
+  const provider = getAIProvider("free", { db, userId });
   const draft = await provider.extractStudioMemory({
     storyTitle: story.title,
     chapterTitle: chapter.title,

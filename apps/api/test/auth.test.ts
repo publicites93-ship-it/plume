@@ -148,5 +148,9 @@ describe("limitation de débit", () => {
       }
     }
     expect(lastError?.code).toBe("TOO_MANY_REQUESTS");
+    // Deux adresses distinctes effectivement reçues par l'API ont des compteurs distincts.
+    const { appRouter } = await import("../src/trpc/router");
+    const other = appRouter.createCaller({ db: context.db, ip: "192.0.2.23" });
+    await expect(other.auth.signIn({ email: "autre@plume.test", password: TEST_PASSWORD })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

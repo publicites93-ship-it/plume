@@ -239,9 +239,14 @@ const MODEL_PRICES_PER_MTOK: Record<string, [number, number]> = {
 };
 
 export function estimateCostMicros(model: string, inputTokens: number, outputTokens: number): number {
+  if (!hasModelPrice(model)) return 0;
   const price = MODEL_PRICES_PER_MTOK[model];
   if (!price) return 0;
   return Math.round(inputTokens * price[0] + outputTokens * price[1]);
+}
+
+export function hasModelPrice(model: string): boolean {
+  return Object.hasOwn(MODEL_PRICES_PER_MTOK, model);
 }
 
 export async function recordAiUsage(

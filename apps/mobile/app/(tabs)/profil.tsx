@@ -195,6 +195,7 @@ export default function ProfileScreen() {
       </Card>
 
       <SectionHeader title="Compte et préférences" eyebrow="Réglages" />
+      {me.data.user.role === "admin" && <AdminCosts />}
       <Card padded={false}>
         <View style={styles.listPad}>
           <ListRow
@@ -418,3 +419,4 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
 });
+import { AdminCosts } from "@/components/AdminCosts";

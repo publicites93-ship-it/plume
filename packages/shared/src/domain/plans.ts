@@ -37,6 +37,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       "Écriture, sauvegarde et export",
       "Lecture publique",
       "3 crédits coach par mois",
+      "Studio : fiches manuelles et 2 analyses de chapitre par mois",
     ],
   },
   plus: {
@@ -53,9 +54,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     features: [
       "Cinq histoires actives",
       "15 crédits coach par mois",
-      "Exercices personnalisés",
+      "Coach avec un modèle plus puissant",
+      "Studio : 25 analyses de chapitre par mois",
       "Historique et progression",
-      "Mémoire narrative",
     ],
   },
   premium: {
@@ -71,10 +72,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     versionComparisons: true,
     features: [
       "Tout Plume+",
-      "Analyses multi-chapitres",
-      "Mémoire narrative avancée",
-      "Comparaisons longitudinales",
       "30 crédits coach par mois",
+      "Studio : 100 analyses de chapitre par mois",
+      "Bientôt : mémoire narrative et analyses entre chapitres",
     ],
   },
 };

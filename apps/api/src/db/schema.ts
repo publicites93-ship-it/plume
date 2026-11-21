@@ -549,6 +549,17 @@ export const aiUsageRecords = pgTable(
   (table) => [index("ai_usage_user_idx").on(table.userId, table.createdAt)],
 );
 
+// Registre financier séparé des crédits pédagogiques décomptés après succès.
+export const claudeReservations = pgTable("claude_reservations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  month: text("month").notNull(),
+  model: text("model").notNull(),
+  reservedMicros: integer("reserved_micros").notNull(),
+  settledMicros: integer("settled_micros"), // NULL : montant réservé toujours immobilisé
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, table => [index("claude_budget_idx").on(table.userId, table.month)]);
+
 export const aiAnalyses = pgTable(
   "ai_analyses",
   {

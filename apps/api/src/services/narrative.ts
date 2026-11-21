@@ -79,7 +79,7 @@ export async function listNarrative(db: Database, storyId: string, userId: strin
         .select()
         .from(timelineEvents)
         .where(eq(timelineEvents.storyId, storyId))
-        .orderBy(asc(timelineEvents.narrativeOrder)),
+        .orderBy(asc(timelineEvents.narrativeOrder), asc(timelineEvents.id)),
       db.select().from(storyIdeas).where(eq(storyIdeas.storyId, storyId)).orderBy(desc(storyIdeas.createdAt)),
       db.select().from(storyPlans).where(eq(storyPlans.storyId, storyId)).limit(1),
     ]);
@@ -291,6 +291,28 @@ export async function createEvent(
   return row;
 }
 
+export async function reorderEvents(db: Database, userId: string, input: {
+  storyId: string; previous: string[]; ordered: string[];
+}) {
+  const { storyId, previous, ordered } = input;
+  await requireOwnedStory(db, storyId, userId);
+  await db.transaction(async tx => {
+    const rows = await tx.select({ id: timelineEvents.id }).from(timelineEvents)
+      .where(eq(timelineEvents.storyId, storyId))
+      .orderBy(asc(timelineEvents.narrativeOrder), asc(timelineEvents.id)).for("update");
+    if (rows.length !== previous.length || rows.some((row, i) => row.id !== previous[i])) {
+      throw new TRPCError({ code: "CONFLICT", message: "La frise a changé. Rouvrez-la pour la réorganiser." });
+    }
+    const ids = new Set(ordered);
+    if (ordered.length !== rows.length || ids.size !== rows.length || rows.some(row => !ids.has(row.id))) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Ordre des événements invalide." });
+    }
+    for (const [i, id] of ordered.entries()) {
+      await tx.update(timelineEvents).set({ narrativeOrder: i + 1 }).where(and(eq(timelineEvents.storyId, storyId), eq(timelineEvents.id, id)));
+    }
+  });
+}
+
 export async function updateEvent(
   db: Database,
   userId: string,
@@ -418,5 +440,3 @@ export async function storyBibleStats(db: Database, storyId: string) {
     ideas: ideaRows.length,
   };
 }
-
-

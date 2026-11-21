@@ -7,6 +7,7 @@ import { aiRouter } from "./routers/ai";
 import { learningRouter } from "./routers/learning";
 import { billingRouter } from "./routers/billing";
 import { studioRouter } from "./routers/studio";
+import { adminRouter } from "./routers/admin";
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({
@@ -22,6 +23,7 @@ export const appRouter = router({
   learning: learningRouter,
   billing: billingRouter,
   studio: studioRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;

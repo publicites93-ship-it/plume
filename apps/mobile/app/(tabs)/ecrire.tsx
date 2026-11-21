@@ -234,6 +234,16 @@ export default function WriteScreen() {
                   )}
                 </Text>
               </View>
+              {me.data.profile.goal !== "read" ? (
+                <Button
+                  label="Ouvrir le Studio"
+                  accessibilityHint={`Accéder au Studio du manuscrit ${story.title}`}
+                  icon="albums-outline"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push({ pathname: "/bible/[id]", params: { id: story.id } })}
+                />
+              ) : null}
             </View>
           ))}
         </View>

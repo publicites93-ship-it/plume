@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  BackHandler,
   Platform,
   Pressable,
   ScrollView,
@@ -8,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   countWords,
@@ -103,6 +104,7 @@ export default function ChapterEditorScreen() {
   const [historyTick, setHistoryTick] = useState(0);
   const lastSnapshot = useRef<string>("");
   const lastSavedContent = useRef<string>("");
+  const lastSavedTitle = useRef("");
   const contentRef = useRef(content);
   const titleRef = useRef(title);
   const baseVersionRef = useRef(baseVersion);
@@ -151,6 +153,7 @@ export default function ChapterEditorScreen() {
     setBaseVersion(chapter.version);
     setLastSavedAt(new Date(chapter.updatedAt));
     lastSavedContent.current = chapter.content;
+    lastSavedTitle.current = chapter.title;
     lastSnapshot.current = chapter.content;
     void hydrateLocalDraft(chapter.content, chapter.title, chapter.version, chapter.updatedAt);
   }, [chapter]);
@@ -242,10 +245,12 @@ export default function ChapterEditorScreen() {
         setBaseVersion(savedVersion);
         baseVersionRef.current = savedVersion;
         lastSavedContent.current = currentContent;
+        lastSavedTitle.current = currentTitle;
+        utils.stories.chapter.setData({ chapterId }, previous => previous && ({ ...previous, ...result.chapter }));
         setLastSavedAt(new Date());
         await clearLocalDraft(chapterId);
         await removePendingSave(chapterId);
-        setSaveState(contentRef.current === currentContent ? "saved" : "dirty");
+        setSaveState(hasUnsavedChanges() ? "dirty" : "saved");
         if (reason === "manual") toast("Chapitre enregistré.", "success");
         void utils.stories.versions.invalidate({ chapterId });
         void utils.stories.dashboard.invalidate();
@@ -280,14 +285,19 @@ export default function ChapterEditorScreen() {
   );
 
   // Autosave : le délai laisse le temps de finir une phrase.
+  function hasUnsavedChanges() {
+    return contentRef.current !== lastSavedContent.current ||
+      (titleRef.current.trim() || "Chapitre sans titre") !== lastSavedTitle.current;
+  }
+
   useEffect(() => {
     if (!initialized || !chapter) return;
-    if (content === lastSavedContent.current && title === chapter.title) return;
+    if (!hasUnsavedChanges()) return;
     if (conflict) return;
     setSaveState("dirty");
     const timer = setTimeout(() => {
       if (savingRef.current || conflictRef.current) return;
-      if (contentRef.current === lastSavedContent.current) return;
+      if (!hasUnsavedChanges()) return;
       void persist("autosave");
     }, 1800);
     return () => clearTimeout(timer);
@@ -301,11 +311,11 @@ export default function ChapterEditorScreen() {
       const pending = await listPendingSaves();
       const item = pending.find((save) => save.chapterId === chapterId);
       if (!item || cancelled) return;
-      if (contentRef.current === lastSavedContent.current) {
+      if (item.content === lastSavedContent.current && item.title === lastSavedTitle.current) {
         await removePendingSave(chapterId);
         return;
       }
-      if (item.baseVersion === baseVersionRef.current) {
+      if (item.baseVersion === baseVersionRef.current && hasUnsavedChanges()) {
         await persist("autosave");
       }
     })();
@@ -405,6 +415,7 @@ export default function ChapterEditorScreen() {
     setBaseVersion(conflict.currentVersion);
     baseVersionRef.current = conflict.currentVersion;
     lastSavedContent.current = conflict.content;
+    lastSavedTitle.current = conflict.title;
     lastSnapshot.current = conflict.content;
     setConflict(null);
     conflictRef.current = null;
@@ -419,11 +430,23 @@ export default function ChapterEditorScreen() {
       router.back();
       return;
     }
-    if (contentRef.current !== lastSavedContent.current) {
-      await persist("manual");
+    if (hasUnsavedChanges()) {
+      if (savingRef.current) return;
+      const saved = await persist("manual");
+      if (!saved && onlineRef.current) return;
     }
     router.back();
   }
+
+  const leave = useRef(handleBack);
+  leave.current = handleBack;
+  useFocusEffect(useCallback(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      void leave.current();
+      return true;
+    });
+    return () => sub.remove();
+  }, []));
 
   async function togglePublish() {
     if (!chapter) return;
@@ -433,7 +456,7 @@ export default function ChapterEditorScreen() {
         await unpublishChapter.mutateAsync({ chapterId });
         toast("Chapitre repassé en brouillon.", "success");
       } else {
-        if (contentRef.current !== lastSavedContent.current) {
+        if (hasUnsavedChanges()) {
           const saved = await persist("manual", { forceSnapshot: true });
           if (!saved) {
             toast("Enregistrez le chapitre avant de le publier.", "error");

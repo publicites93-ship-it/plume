@@ -3,6 +3,8 @@ import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { EVENT_CERTAINTY, PLOT_KINDS, RELATION_KINDS, spacing } from "@plume/shared";
+import { RelationMap } from "@/components/RelationMap";
+import { TimelineOrder } from "@/components/TimelineOrder";
 import {
   Badge,
   Button,
@@ -157,7 +159,10 @@ export default function StoryBibleScreen() {
   const narrative = trpc.narrative.list.useQuery({ storyId }, { enabled: Boolean(storyId) });
 
   const [section, setSection] = useState<SectionKey>("characters");
+  const plan = trpc.auth.me.useQuery(undefined, { enabled: section === "relations" }).data?.plan.plan;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const reorder = trpc.narrative.reorderEvents.useMutation();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({ ...EMPTY_FIELDS.characters });
   const [formError, setFormError] = useState<string | null>(null);
@@ -521,6 +526,15 @@ export default function StoryBibleScreen() {
         onAction={openCreate}
       />
 
+      {section === "relations" && data.characters.length > 0 && (plan === "plus" || plan === "premium") && (
+        <RelationMap key={storyId} characters={data.characters} relations={data.relations} advanced={plan === "premium"}
+          open={id => router.push({ pathname: "/fiche/[id]", params: { id, type: "character", storyId } })} />
+      )}
+      {section === "events" && data.events.length > 1 && <Button label="Réorganiser la frise" icon="reorder-three-outline" variant="secondary" onPress={() => setOrdering(true)} />}
+      {ordering && <TimelineOrder events={data.events} close={() => setOrdering(false)} save={async (previous, ordered) => {
+        try { await reorder.mutateAsync({ storyId, previous, ordered }); }
+        finally { await utils.narrative.list.invalidate({ storyId }); }
+      }} />}
       {items.length === 0 ? (
         <Card>
           <EmptyState
@@ -546,8 +560,8 @@ export default function StoryBibleScreen() {
           />
         </Card>
       ) : (
-        <View style={styles.list}>
-          {items.map((item) => {
+        <View style={section === "events" ? undefined : styles.list}>
+          {items.map((item, index) => {
             const row = item as Record<string, unknown>;
             const idValue = text(row.id);
             const characterName = (characterId: unknown) =>
@@ -564,7 +578,7 @@ export default function StoryBibleScreen() {
             const portrait = entityType
               ? data.media.find((media) => media.entityType === entityType && media.entityId === idValue)
               : undefined;
-            return (
+            const card = (
               <Card key={idValue} style={styles.itemCard}>
                 <View style={styles.itemTop}>
                   {entityType ? (
@@ -759,6 +773,17 @@ export default function StoryBibleScreen() {
                   </Pressable>
                 </View>
               </Card>
+            );
+            if (section !== "events") return card;
+            return (
+              <View key={idValue} style={styles.timelineRow}>
+                <View style={styles.rail} importantForAccessibility="no-hide-descendants">
+                  {index > 0 && <View style={styles.lineAbove} />}
+                  {index < items.length - 1 && <View style={styles.lineBelow} />}
+                  <View style={styles.marker} />
+                </View>
+                <View style={styles.eventBody}>{card}</View>
+              </View>
             );
           })}
         </View>
@@ -1012,6 +1037,12 @@ const styles = StyleSheet.create({
   itemCard: {
     gap: spacing[3],
   },
+  timelineRow: { flexDirection: "row", gap: spacing[2] },
+  rail: { width: 14, alignItems: "center" },
+  lineAbove: { position: "absolute", top: 0, height: 24, width: 2, backgroundColor: theme.gold },
+  lineBelow: { position: "absolute", top: 24, bottom: 0, width: 2, backgroundColor: theme.gold },
+  marker: { marginTop: 18, width: 12, height: 12, borderRadius: 6, backgroundColor: theme.gold },
+  eventBody: { flex: 1, minWidth: 0, paddingBottom: spacing[3] },
   itemTop: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1027,6 +1058,7 @@ const styles = StyleSheet.create({
   },
   itemActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 14,
     borderTopWidth: StyleSheet.hairlineWidth,

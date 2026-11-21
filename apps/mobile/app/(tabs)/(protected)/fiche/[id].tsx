@@ -51,6 +51,7 @@ function valueOf(row: Row, key: string, column?: boolean): string {
 export default function StudioSheetScreen() {
   const params = useLocalSearchParams<{ id: string; type?: string; storyId?: string }>();
   const entityId = String(params.id ?? "");
+  const [openSource, setOpenSource] = useState<string | null>(null);
   const storyId = String(params.storyId ?? "");
   const type: EntityType = params.type === "location" ? "location" : "character";
   const sections: StudioSection[] = type === "character" ? CHARACTER_SECTIONS : LOCATION_SECTIONS;
@@ -268,13 +269,26 @@ export default function StudioSheetScreen() {
                   ))
                 : filled.map((field) => (
                     <View key={field.key} style={styles.field}>
-                      <Text variant="label" color={theme.gold}>
-                        {field.label}
-                      </Text>
+                      <View style={styles.fieldHeading}>
+                        <Text variant="label" color={theme.gold} style={{ flexShrink: 1 }}>
+                          {field.label}
+                        </Text>
+                        {row.sources?.[field.key]?.origin === "ai" && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Source du champ ${field.label}`}
+                            accessibilityState={{ expanded: openSource === field.key }}
+                            hitSlop={8}
+                            onPress={() => setOpenSource(current => current === field.key ? null : field.key)}
+                          >
+                            <Ionicons name="information-circle-outline" size={18} color={theme.textMuted} />
+                          </Pressable>
+                        )}
+                      </View>
                       <Text variant="body" color={theme.textSecondary}>
                         {valueOf(row, field.key, field.column)}
                       </Text>
-                      {row.sources?.[field.key]?.origin === "ai" ? (
+                      {openSource === field.key && row.sources?.[field.key]?.origin === "ai" ? (
                         <Text variant="caption" color={theme.textMuted} style={styles.source}>
                           Repéré par l'IA
                           {row.sources[field.key]?.chapterTitle ? ` dans « ${row.sources[field.key]?.chapterTitle} »` : ""}
@@ -344,6 +358,7 @@ export default function StudioSheetScreen() {
 }
 
 const styles = StyleSheet.create({
+  fieldHeading: { flexDirection: "row", alignItems: "center", gap: spacing[2] },
   flex: { flex: 1 },
   gallery: {
     gap: spacing[3],

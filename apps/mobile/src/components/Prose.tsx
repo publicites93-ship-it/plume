@@ -80,11 +80,13 @@ export function Prose({
   color,
   mutedColor,
   baseSize = 18,
+  onBlockLayout,
 }: {
   content: string;
   color: string;
   mutedColor?: string;
   baseSize?: number;
+  onBlockLayout?: (index: number, top: number, height: number) => void;
 }) {
   const fontScale = useUiStore((state) => state.fontScale);
   const readingFont = useUiStore((state) => state.readingFont);
@@ -110,11 +112,16 @@ export function Prose({
   return (
     <View style={styles.blocks}>
       {blocks.map((block, index) => {
+        const layout = onBlockLayout ? (e: import("react-native").LayoutChangeEvent) => {
+          const { y, height } = e.nativeEvent.layout;
+          onBlockLayout(index, y, height);
+        } : undefined;
         const heading = /^(#{1,3})\s+/.exec(block);
         if (heading) {
           return (
             <Text
               key={index}
+              onLayout={layout}
               variant="heading"
               color={color}
               style={styles.heading}
@@ -125,7 +132,7 @@ export function Prose({
         }
         const quote = block.startsWith("> ");
         return (
-          <View key={index} style={quote ? styles.quote : undefined}>
+          <View key={index} onLayout={layout} style={quote ? styles.quote : undefined}>
             <InlineMarkdown
               value={quote ? block.replace(/^>\s?/gm, "") : block}
               color={color}
